@@ -8,6 +8,7 @@ import StockSearch from '@/components/StockSearch'
 import AiChart from '@/components/AiChart'
 import IndicatorPanel from '@/components/IndicatorPanel'
 import AiChat from '@/components/AiChat'
+import Watchlist from '@/components/Watchlist'
 import ImageDropZone from '@/components/ImageDropZone'
 import ChartAnalysisCard from '@/components/ChartAnalysisCard'
 import SentimentDashboard from '@/components/SentimentDashboard'
@@ -32,9 +33,10 @@ export default function AiPage() {
   // Live Chart state
   const [selectedSymbol, setSelectedSymbol] = useState('')
   const [selectedName, setSelectedName] = useState('')
-  const [interval, setInterval] = useState('1day')
+  const [interval, setInterval] = useState('D')
   const [indicators, setIndicators] = useState<IndicatorConfig[]>([])
   const [pineScript, setPineScript] = useState('')
+  const [tvStudies, setTvStudies] = useState<string[]>([])
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatSending, setChatSending] = useState(false)
   const [currentOhlc, setCurrentOhlc] = useState<OHLC[]>([])
@@ -322,51 +324,69 @@ export default function AiPage() {
 
       {/* ── Live Chart Tab ── */}
       {tab === 'live' && (
-        <div className="space-y-4">
-          <StockSearch
-            onSelect={(symbol, name) => {
-              setSelectedSymbol(symbol)
-              setSelectedName(name)
-              setChatMessages([])
-              setPendingSuggestionId(null)
-            }}
-            placeholder="Search stocks, forex, crypto..."
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Watchlist Sidebar */}
+          <div className="lg:col-span-1">
+            <Watchlist
+              onSymbolClick={(sym) => {
+                setSelectedSymbol(sym)
+                setSelectedName('')
+                setChatMessages([])
+                setPendingSuggestionId(null)
+              }}
+            />
+          </div>
 
-          {selectedSymbol && (
-            <>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="font-bold text-text-primary text-lg">{selectedSymbol}</span>
-                {selectedName && <span className="text-text-secondary">{selectedName}</span>}
-              </div>
+          {/* Main Chart Area */}
+          <div className="lg:col-span-3 space-y-4">
+            <StockSearch
+              onSelect={(symbol, name) => {
+                setSelectedSymbol(symbol)
+                setSelectedName(name)
+                setChatMessages([])
+                setPendingSuggestionId(null)
+              }}
+              placeholder="Search stocks, forex, crypto..."
+            />
 
-              <IndicatorPanel
-                indicators={indicators}
-                onIndicatorsChange={setIndicators}
-                pineScript={pineScript}
-                onPineScriptChange={setPineScript}
-              />
+            {selectedSymbol && (
+              <>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-bold text-text-primary text-lg">{selectedSymbol}</span>
+                  {selectedName && <span className="text-text-secondary">{selectedName}</span>}
+                </div>
 
-              <AiChart
-                symbol={selectedSymbol}
-                interval={interval}
-                onIntervalChange={setInterval}
-                indicators={indicators}
-                onAnalyze={handleAnalyzeChart}
-                analyzing={chatSending}
-              />
+                <IndicatorPanel
+                  indicators={indicators}
+                  onIndicatorsChange={setIndicators}
+                  pineScript={pineScript}
+                  onPineScriptChange={setPineScript}
+                  tvStudies={tvStudies}
+                  onTvStudiesChange={setTvStudies}
+                />
 
-              <AiChat
-                messages={chatMessages}
-                onSendMessage={handleChatSend}
-                onTakeTrade={handleChatTakeTrade}
-                onSkip={handleChatSkip}
-                sending={chatSending}
-                cashBalance={portfolio?.cash_balance || 0}
-                pendingSuggestionId={pendingSuggestionId}
-              />
-            </>
-          )}
+                <AiChart
+                  symbol={selectedSymbol}
+                  interval={interval}
+                  onIntervalChange={setInterval}
+                  indicators={indicators}
+                  onAnalyze={handleAnalyzeChart}
+                  analyzing={chatSending}
+                  tvStudies={tvStudies}
+                />
+
+                <AiChat
+                  messages={chatMessages}
+                  onSendMessage={handleChatSend}
+                  onTakeTrade={handleChatTakeTrade}
+                  onSkip={handleChatSkip}
+                  sending={chatSending}
+                  cashBalance={portfolio?.cash_balance || 0}
+                  pendingSuggestionId={pendingSuggestionId}
+                />
+              </>
+            )}
+          </div>
         </div>
       )}
 

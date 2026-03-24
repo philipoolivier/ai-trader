@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import StockSearch from '@/components/StockSearch'
-import PriceChart from '@/components/PriceChart'
+import TradingViewChart from '@/components/TradingViewChart'
 import TradeForm from '@/components/TradeForm'
 import { formatCurrency, formatPercent, formatCompactNumber, getPnlColor, cn } from '@/lib/utils'
 import type { Quote, Position, Portfolio } from '@/types'
@@ -124,7 +124,7 @@ function TradePageContent() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart */}
         <div className="lg:col-span-2 bg-surface-1 rounded-xl border border-surface-3 p-5">
-          <PriceChart symbol={selectedSymbol} />
+          <TradingViewChart symbol={selectedSymbol} interval="D" height={450} />
         </div>
 
         {/* Trade Form */}
