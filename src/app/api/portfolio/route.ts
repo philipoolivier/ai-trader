@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
 const DEFAULT_USER_ID = 'default-user'
-const INITIAL_BALANCE = 100000
+const INITIAL_BALANCE = 500
 
 export async function GET() {
   try {
@@ -79,7 +79,7 @@ export async function DELETE() {
       await supabase.from('portfolio_snapshots').delete().eq('portfolio_id', portfolio.id)
       await supabase
         .from('portfolios')
-        .update({ cash_balance: INITIAL_BALANCE })
+        .update({ cash_balance: INITIAL_BALANCE, initial_balance: INITIAL_BALANCE })
         .eq('id', portfolio.id)
     }
 

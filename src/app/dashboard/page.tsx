@@ -79,8 +79,8 @@ export default function DashboardPage() {
 
   const positionsValue = positionsWithQuotes.reduce((sum, p) => sum + p.market_value, 0)
   const totalValue = (data?.portfolio?.cash_balance || 0) + positionsValue
-  const totalPnl = totalValue - (data?.portfolio?.initial_balance || 100000)
-  const totalPnlPercent = (totalPnl / (data?.portfolio?.initial_balance || 100000)) * 100
+  const totalPnl = totalValue - (data?.portfolio?.initial_balance || 500)
+  const totalPnlPercent = (totalPnl / (data?.portfolio?.initial_balance || 500)) * 100
   const unrealizedPnl = positionsWithQuotes.reduce((sum, p) => sum + p.unrealized_pnl, 0)
 
   const closedTrades = (data?.trades || []).filter((t) => t.side === 'sell' && t.pnl !== null)

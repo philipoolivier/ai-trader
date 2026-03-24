@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createChart, ColorType, CandlestickSeries, HistogramSeries } from 'lightweight-charts'
+import { createChart, ColorType } from 'lightweight-charts'
 import type { OHLC } from '@/types'
 
 interface PriceChartProps {
@@ -63,7 +63,7 @@ export default function PriceChart({ symbol }: PriceChartProps) {
       height: 400,
     })
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
+    const candleSeries = chart.addCandlestickSeries({
       upColor: '#22c55e',
       downColor: '#ef4444',
       borderUpColor: '#22c55e',
@@ -72,7 +72,7 @@ export default function PriceChart({ symbol }: PriceChartProps) {
       wickDownColor: '#ef4444',
     })
 
-    const volumeSeries = chart.addSeries(HistogramSeries, {
+    const volumeSeries = chart.addHistogramSeries({
       priceFormat: { type: 'volume' },
       priceScaleId: '',
     })

@@ -81,7 +81,7 @@ export default function PortfolioPage() {
   }, [fetchData])
 
   const handleReset = async () => {
-    if (!confirm('Reset your portfolio to $100,000? All trades and positions will be deleted.')) return
+    if (!confirm('Reset your portfolio to $500? All trades and positions will be deleted.')) return
     setResetting(true)
     try {
       await fetch('/api/portfolio', { method: 'DELETE' })

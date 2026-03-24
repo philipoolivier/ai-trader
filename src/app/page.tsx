@@ -12,7 +12,7 @@ const features = [
   {
     icon: TrendingUp,
     title: 'Paper Trading',
-    description: 'Practice trading with $100K virtual cash using real-time market data. No risk, all the learning.',
+    description: 'Practice trading with $500 virtual cash using real-time market data. No risk, all the learning.',
   },
   {
     icon: Briefcase,
@@ -77,7 +77,7 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="text-lg text-text-secondary mb-10 max-w-2xl mx-auto">
-              Practice trading with real market data and $100K in virtual cash.
+              Practice trading with real market data and $500 in virtual cash.
               Track your portfolio, analyze your trades, and build confidence before risking real money.
             </p>
             <div className="flex items-center justify-center gap-4">
@@ -128,7 +128,7 @@ export default function LandingPage() {
         <div className="bg-gradient-to-r from-brand-950 to-surface-1 rounded-2xl border border-surface-3 p-12 text-center">
           <h2 className="text-3xl font-bold text-text-primary mb-4">Ready to start trading?</h2>
           <p className="text-text-secondary mb-8 max-w-lg mx-auto">
-            Get started with $100,000 in virtual cash. No credit card required.
+            Get started with $500 in virtual cash. No credit card required.
           </p>
           <Link
             href="/dashboard"
