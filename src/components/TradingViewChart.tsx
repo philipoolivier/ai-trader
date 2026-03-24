@@ -9,17 +9,15 @@ interface TradingViewChartProps {
   studies?: string[]
 }
 
-function TradingViewChartInner({ symbol, interval = 'D', height = 500, studies = [] }: TradingViewChartProps) {
+function TradingViewChartInner({ symbol, interval = 'D', height = 650, studies = [] }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!containerRef.current || !symbol) return
 
     // Clear previous widget
-    containerRef.current.innerHTML = ''
-
-    // Build studies array - TradingView built-in study IDs
-    const chartStudies = [...studies]
+    const container = containerRef.current
+    container.innerHTML = ''
 
     const script = document.createElement('script')
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
@@ -39,7 +37,15 @@ function TradingViewChartInner({ symbol, interval = 'D', height = 500, studies =
       calendar: false,
       support_host: 'https://www.tradingview.com',
       hide_volume: false,
-      studies: chartStudies,
+      studies: studies,
+      save_image: true,
+      show_popup_button: true,
+      popup_width: '1200',
+      popup_height: '800',
+      withdateranges: true,
+      details: true,
+      hotlist: false,
+      enable_publishing: false,
     })
 
     const widgetDiv = document.createElement('div')
@@ -50,15 +56,12 @@ function TradingViewChartInner({ symbol, interval = 'D', height = 500, studies =
     const copyrightDiv = document.createElement('div')
     copyrightDiv.className = 'tradingview-widget-copyright'
 
-    containerRef.current.appendChild(widgetDiv)
-    containerRef.current.appendChild(copyrightDiv)
-    containerRef.current.appendChild(script)
+    container.appendChild(widgetDiv)
+    container.appendChild(copyrightDiv)
+    container.appendChild(script)
 
-    const container = containerRef.current
     return () => {
-      if (container) {
-        container.innerHTML = ''
-      }
+      container.innerHTML = ''
     }
   }, [symbol, interval, height, studies])
 
