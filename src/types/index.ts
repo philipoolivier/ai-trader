@@ -158,6 +158,17 @@ export interface IndicatorValues {
   values: Record<string, (number | null)[]>
 }
 
+export interface CustomIndicator {
+  id: string
+  user_id: string
+  name: string
+  description: string | null
+  pine_script: string
+  category: string
+  created_at: string
+  updated_at: string
+}
+
 export interface AnalyzeChartDataRequest {
   symbol: string
   interval: string

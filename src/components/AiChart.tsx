@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { Brain } from 'lucide-react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { Brain, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import TradingViewChart from '@/components/TradingViewChart'
 import { computeIndicator } from '@/lib/indicators'
@@ -18,22 +18,16 @@ interface AiChartProps {
 }
 
 const INTERVALS = [
-  { label: '5m', value: '5', tvValue: '5' },
-  { label: '15m', value: '15', tvValue: '15' },
-  { label: '1H', value: '60', tvValue: '60' },
-  { label: '4H', value: '240', tvValue: '240' },
-  { label: '1D', value: 'D', tvValue: 'D' },
-  { label: '1W', value: 'W', tvValue: 'W' },
+  { label: '5m', value: '5' },
+  { label: '15m', value: '15' },
+  { label: '1H', value: '60' },
+  { label: '4H', value: '240' },
+  { label: '1D', value: 'D' },
+  { label: '1W', value: 'W' },
 ]
 
-// Map TV intervals to TwelveData intervals for data fetching
 const TV_TO_TWELVE: Record<string, string> = {
-  '5': '5min',
-  '15': '15min',
-  '60': '1h',
-  '240': '4h',
-  'D': '1day',
-  'W': '1week',
+  '5': '5min', '15': '15min', '60': '1h', '240': '4h', 'D': '1day', 'W': '1week',
 }
 
 export default function AiChart({
@@ -46,32 +40,51 @@ export default function AiChart({
   tvStudies = [],
 }: AiChartProps) {
   const [ohlcData, setOhlcData] = useState<OHLC[]>([])
-  const [dataLoading, setDataLoading] = useState(false)
+  const [fetchingData, setFetchingData] = useState(false)
 
-  // Fetch OHLC data from TwelveData for AI analysis (separate from chart rendering)
-  const fetchOhlcForAnalysis = useCallback(async () => {
-    if (!symbol) return
-    setDataLoading(true)
+  // Memoize studies array to prevent TradingView widget re-renders
+  const memoizedStudies = useMemo(() => tvStudies, [JSON.stringify(tvStudies)])
+
+  // Fetch OHLC data whenever symbol or interval changes
+  const fetchOhlcData = useCallback(async () => {
+    if (!symbol) return []
+    setFetchingData(true)
     try {
       const twelveInterval = TV_TO_TWELVE[interval] || '1day'
       const res = await fetch(`/api/market/history?symbol=${symbol}&interval=${twelveInterval}&outputsize=100`)
       const json = await res.json()
-      if (Array.isArray(json)) setOhlcData(json)
+      if (Array.isArray(json) && json.length > 0) {
+        setOhlcData(json)
+        return json
+      }
     } catch { /* ignore */ }
-    finally { setDataLoading(false) }
+    finally { setFetchingData(false) }
+    return ohlcData
+  }, [symbol, interval, ohlcData])
+
+  // Pre-fetch data on mount and when symbol/interval change
+  useEffect(() => {
+    fetchOhlcData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, interval])
 
-  useEffect(() => { fetchOhlcForAnalysis() }, [fetchOhlcForAnalysis])
-
   const handleAnalyze = async () => {
-    // Ensure we have fresh data
-    if (ohlcData.length === 0) {
-      await fetchOhlcForAnalysis()
+    // Always fetch fresh data before analysis
+    let data = ohlcData
+    if (data.length === 0) {
+      data = await fetchOhlcData()
     }
+
+    if (data.length === 0) {
+      // Still no data — analyze without OHLC (screenshot-style with just the symbol)
+      onAnalyze([], [])
+      return
+    }
+
     const indicatorValues = indicators
       .filter((c) => c.visible)
-      .map((c) => computeIndicator(ohlcData, c))
-    onAnalyze(ohlcData, indicatorValues)
+      .map((c) => computeIndicator(data, c))
+    onAnalyze(data, indicatorValues)
   }
 
   if (!symbol) {
@@ -84,7 +97,7 @@ export default function AiChart({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex gap-1">
           {INTERVALS.map((i) => (
             <button
@@ -101,15 +114,24 @@ export default function AiChart({
         </div>
         <button
           onClick={handleAnalyze}
-          disabled={analyzing || dataLoading}
+          disabled={analyzing}
           className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
         >
-          <Brain size={14} className={analyzing ? 'animate-pulse' : ''} />
-          {analyzing ? 'Analyzing...' : 'Analyze This Chart'}
+          {analyzing ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Brain size={14} />
+          )}
+          {analyzing ? 'Analyzing...' : fetchingData ? 'Loading data...' : 'Analyze This Chart'}
         </button>
       </div>
 
-      <TradingViewChart symbol={symbol} interval={interval} height={500} studies={tvStudies} />
+      <TradingViewChart
+        symbol={symbol}
+        interval={interval}
+        height={500}
+        studies={memoizedStudies}
+      />
     </div>
   )
 }

@@ -12,9 +12,12 @@ export async function POST(request: Request) {
   try {
     const body: AnalyzeChartDataRequest = await request.json()
 
-    if (!body.symbol || !body.ohlcData || body.ohlcData.length === 0) {
-      return NextResponse.json({ error: 'Symbol and OHLC data required' }, { status: 400 })
+    if (!body.symbol) {
+      return NextResponse.json({ error: 'Symbol is required' }, { status: 400 })
     }
+
+    // If no OHLC data, set empty array - Claude will analyze with just context
+    if (!body.ohlcData) body.ohlcData = []
 
     if (!process.env.CLAUDE_API_KEY) {
       return NextResponse.json({ error: 'Claude API key is not configured' }, { status: 500 })

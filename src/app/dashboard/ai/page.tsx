@@ -9,6 +9,7 @@ import AiChart from '@/components/AiChart'
 import IndicatorPanel from '@/components/IndicatorPanel'
 import AiChat from '@/components/AiChat'
 import Watchlist from '@/components/Watchlist'
+import IndicatorLibrary from '@/components/IndicatorLibrary'
 import ImageDropZone from '@/components/ImageDropZone'
 import ChartAnalysisCard from '@/components/ChartAnalysisCard'
 import SentimentDashboard from '@/components/SentimentDashboard'
@@ -19,6 +20,7 @@ import type {
   Portfolio,
   ChatMessage,
   IndicatorConfig,
+  CustomIndicator,
   OHLC,
   IndicatorValues,
 } from '@/types'
@@ -37,6 +39,7 @@ export default function AiPage() {
   const [indicators, setIndicators] = useState<IndicatorConfig[]>([])
   const [pineScript, setPineScript] = useState('')
   const [tvStudies, setTvStudies] = useState<string[]>([])
+  const [activeCustomIndicators, setActiveCustomIndicators] = useState<CustomIndicator[]>([])
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatSending, setChatSending] = useState(false)
   const [currentOhlc, setCurrentOhlc] = useState<OHLC[]>([])
@@ -71,6 +74,16 @@ export default function AiPage() {
     fetchHistory()
   }, [fetchPortfolio, fetchHistory])
 
+  // Combine manual Pine Script + active custom indicators into one context string
+  const buildPineScriptContext = () => {
+    const parts: string[] = []
+    if (pineScript.trim()) parts.push(`// Manual Pine Script:\n${pineScript}`)
+    for (const ind of activeCustomIndicators) {
+      parts.push(`// Custom Indicator: ${ind.name}${ind.description ? ` - ${ind.description}` : ''}\n${ind.pine_script}`)
+    }
+    return parts.length > 0 ? parts.join('\n\n') : undefined
+  }
+
   // ── Live Chart handlers ──
 
   const handleAnalyzeChart = async (ohlcData: OHLC[], indicatorValues: IndicatorValues[]) => {
@@ -96,7 +109,7 @@ export default function AiPage() {
           interval,
           ohlcData,
           indicators: indicatorValues,
-          pineScriptCode: pineScript || undefined,
+          pineScriptCode: buildPineScriptContext(),
           conversationHistory: chatMessages.map((m) => ({ ...m })),
           userMessage: undefined,
         }),
@@ -154,7 +167,7 @@ export default function AiPage() {
           interval,
           ohlcData: currentOhlc,
           indicators: currentIndicatorValues,
-          pineScriptCode: pineScript || undefined,
+          pineScriptCode: buildPineScriptContext(),
           conversationHistory: updatedMessages.map((m) => ({
             id: m.id, role: m.role, content: m.content, timestamp: m.timestamp,
           })),
@@ -363,6 +376,11 @@ export default function AiPage() {
                   onPineScriptChange={setPineScript}
                   tvStudies={tvStudies}
                   onTvStudiesChange={setTvStudies}
+                />
+
+                <IndicatorLibrary
+                  activeIndicators={activeCustomIndicators}
+                  onActiveChange={setActiveCustomIndicators}
                 />
 
                 <AiChart
