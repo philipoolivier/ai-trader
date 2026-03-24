@@ -52,6 +52,7 @@ export default function AiPage() {
 
   // Screenshot tab state
   const [analyzing, setAnalyzing] = useState(false)
+  const [screenshotText, setScreenshotText] = useState('')
   const [screenshotAnalysis, setScreenshotAnalysis] = useState<ChartAnalysisResponse | null>(null)
   const [screenshotSuggestionId, setScreenshotSuggestionId] = useState<string | null>(null)
   const [screenshotError, setScreenshotError] = useState('')
@@ -262,13 +263,13 @@ export default function AiPage() {
       })
       const data = await res.json()
 
-      if (res.ok && data.analysis) {
+      if (res.ok && (data.text || data.analysis)) {
         if (data.suggestionId) setPendingSuggestionId(data.suggestionId)
         const assistantMsg: ChatMessage = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
-          content: data.analysis.reasoning || 'Analysis complete.',
-          analysis: data.analysis,
+          content: data.text || data.analysis?.reasoning || 'Analysis complete.',
+          analysis: data.analysis || null,
           timestamp: new Date().toISOString(),
         }
         setChatMessages((prev) => [...prev, assistantMsg])
@@ -297,6 +298,7 @@ export default function AiPage() {
     setScreenshotAnalysis(null)
     setScreenshotSuggestionId(null)
     setScreenshotMessage(null)
+    setScreenshotText('')
 
     try {
       const res = await fetch('/api/ai/analyze-chart', {
@@ -306,8 +308,9 @@ export default function AiPage() {
       })
       const data = await res.json()
 
-      if (res.ok && data.analysis) {
-        setScreenshotAnalysis(data.analysis)
+      if (res.ok && (data.text || data.analysis)) {
+        setScreenshotText(data.text || '')
+        setScreenshotAnalysis(data.analysis || null)
         setScreenshotSuggestionId(data.suggestionId)
         fetchHistory()
       } else {
@@ -498,6 +501,20 @@ export default function AiPage() {
             </div>
           )}
 
+          {/* Full Analysis Text */}
+          {screenshotText && (
+            <div className="bg-surface-1 rounded-xl border border-surface-3 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Brain size={18} className="text-brand-400" />
+                <span className="text-sm font-medium text-text-primary">Analysis</span>
+              </div>
+              <div className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
+                {screenshotText}
+              </div>
+            </div>
+          )}
+
+          {/* Trade suggestion card (if there's a trade) */}
           {screenshotAnalysis && screenshotSuggestionId && screenshotAnalysis.direction && screenshotAnalysis.confidence > 0 && (
             <ChartAnalysisCard
               analysis={screenshotAnalysis}
@@ -508,16 +525,10 @@ export default function AiPage() {
             />
           )}
 
-          {screenshotAnalysis && (!screenshotAnalysis.direction || screenshotAnalysis.confidence === 0) && (
-            <div className="bg-surface-1 rounded-xl border border-surface-3 p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <Brain size={18} className="text-text-muted" />
-                <span className="text-sm font-medium text-text-secondary">No Trade Setup</span>
-              </div>
-              <p className="text-sm text-text-primary">{screenshotAnalysis.reasoning}</p>
-              {screenshotAnalysis.follow_up_suggestion && (
-                <p className="text-xs text-brand-400 mt-2">{screenshotAnalysis.follow_up_suggestion}</p>
-              )}
+          {screenshotAnalysis?.follow_up_suggestion && (
+            <div className="bg-brand-600/5 border border-brand-600/20 rounded-lg px-4 py-3">
+              <span className="text-xs text-text-muted">Suggestion: </span>
+              <span className="text-sm text-brand-400">{screenshotAnalysis.follow_up_suggestion}</span>
             </div>
           )}
 

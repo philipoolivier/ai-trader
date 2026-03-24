@@ -19,10 +19,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Claude API key is not configured' }, { status: 500 })
     }
 
-    // Analyze chart with Claude
-    let analysis
+    // Analyze chart with Claude — returns full text analysis + optional structured data
+    let result
     try {
-      analysis = await analyzeChart(image, mimeType)
+      result = await analyzeChart(image, mimeType)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown Claude API error'
       return NextResponse.json({ error: `AI analysis error: ${msg}` }, { status: 500 })
@@ -38,51 +38,46 @@ export async function POST(request: Request) {
     if (!portfolio) {
       const { data: newPortfolio, error: createErr } = await supabase
         .from('portfolios')
-        .insert({
-          user_id: DEFAULT_USER_ID,
-          cash_balance: INITIAL_BALANCE,
-          initial_balance: INITIAL_BALANCE,
-        })
+        .insert({ user_id: DEFAULT_USER_ID, cash_balance: INITIAL_BALANCE, initial_balance: INITIAL_BALANCE })
         .select('id')
         .single()
-
       if (createErr) {
-        return NextResponse.json({ error: `Database error creating portfolio: ${createErr.message}` }, { status: 500 })
+        return NextResponse.json({ error: `Database error: ${createErr.message}` }, { status: 500 })
       }
       portfolio = newPortfolio
     }
 
-    // Only save suggestion if there's a trade recommendation
-    if (analysis.direction && analysis.confidence > 0) {
+    // Save suggestion if there's a trade recommendation
+    let suggestionId: string | null = null
+    if (result.analysis?.direction && result.analysis.confidence > 0) {
       const { data: suggestion, error: sugErr } = await supabase
         .from('ai_suggestions')
         .insert({
           portfolio_id: portfolio!.id,
-          symbol: analysis.symbol,
-          direction: analysis.direction,
-          entry_price: analysis.entry_price,
-          stop_loss: analysis.stop_loss,
-          take_profit: analysis.take_profit,
-          confidence: analysis.confidence,
-          reasoning: analysis.reasoning,
-          patterns: analysis.patterns,
-          raw_analysis: analysis as unknown as Record<string, unknown>,
+          symbol: result.analysis.symbol,
+          direction: result.analysis.direction,
+          entry_price: result.analysis.entry_price,
+          stop_loss: result.analysis.stop_loss,
+          take_profit: result.analysis.take_profit,
+          confidence: result.analysis.confidence,
+          reasoning: result.text.slice(0, 2000),
+          patterns: result.analysis.patterns,
+          raw_analysis: result.analysis as unknown as Record<string, unknown>,
           status: 'pending',
         })
-        .select()
+        .select('id')
         .single()
 
-      if (sugErr) {
-        // Return analysis even if suggestion save fails
-        console.error('Failed to save suggestion:', sugErr.message)
-        return NextResponse.json({ analysis, suggestionId: null, warning: 'Analysis succeeded but failed to save to database' })
+      if (!sugErr && suggestion) {
+        suggestionId = suggestion.id
       }
-
-      return NextResponse.json({ analysis, suggestionId: suggestion.id })
     }
 
-    // No trade suggestion
-    return NextResponse.json({ analysis, suggestionId: null })
+    return NextResponse.json({
+      text: result.text,
+      analysis: result.analysis,
+      suggestionId,
+    })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ error: `Chart analysis failed: ${message}` }, { status: 500 })

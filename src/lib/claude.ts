@@ -8,79 +8,55 @@ function getApiKey(): string {
   return process.env.CLAUDE_API_KEY || ''
 }
 
-function parseJsonResponse(text: string): Record<string, unknown> {
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error('Failed to parse JSON from Claude response')
-  return JSON.parse(jsonMatch[0])
-}
-
 // ── Screenshot Analysis (image-based) ─────────────────────────────────
 
-const CHART_ANALYSIS_PROMPT = `You are an elite institutional forex/commodities/equities trader with 20+ years of experience. You trade live and you analyze charts like a pro. Analyze this chart screenshot with the depth and specificity of a senior prop desk analyst.
+const CHART_ANALYSIS_PROMPT = `You are an elite institutional forex/commodities/equities trader with 20+ years on a prop desk. Analyze this chart screenshot exactly like you would brief your trading desk.
 
-YOUR ANALYSIS MUST INCLUDE:
+Give me your FULL read — don't hold back. Cover:
 
-1. CURRENT PRICE & CONTEXT: What is the exact price? Where is it relative to the session range? What time/session is this (Asia, London, NY)?
+**Current Price & Context** — exact price, what time/session (Asia, London, NY pre-market, NY open), where in the session range
 
-2. KEY LEVELS (be SPECIFIC with exact prices):
-   - Major resistance levels (list 3-5 with exact numbers)
-   - Major support levels (list 3-5 with exact numbers)
-   - Volume profile nodes / VPVR levels if visible
-   - Session highs/lows (Asia high/low, London high/low, NY high/low)
-   - VWAP level if visible
+**Key Levels** — read EVERY level you can see. Be specific with exact prices:
+- Resistance levels with exact numbers
+- Support levels with exact numbers
+- Volume profile / VPVR nodes if visible (where are the high volume nodes?)
+- Session highs and lows (Asia H/L, London H/L, prior day H/L)
+- VWAP if visible
+- Any horizontal levels, order blocks, or liquidity zones
 
-3. INDICATOR ANALYSIS - read EVERY indicator on the chart:
-   - Moving averages (which ones, are they trending, crosses?)
-   - Bollinger Bands / channels (expansion? contraction? which band?)
-   - Volume profile (where are the high volume nodes?)
-   - Any overlays, session boxes, etc.
-   - RSI, MACD, Stochastic if visible
+**Indicator Analysis** — read EVERY indicator on the chart:
+- Moving averages (which ones, trending direction, any crosses?)
+- Bollinger Bands / channels (expansion? contraction? which band is price touching?)
+- Volume profile reading
+- Any session boxes, overlays, custom indicators
+- RSI, MACD, Stochastic, or any oscillators if visible
+- Describe what the indicators ARE telling you, not just that they exist
 
-4. PRICE ACTION CONTEXT:
-   - What happened in Asia session?
-   - What happened in London session?
-   - Where are we relative to NY open?
-   - Is price at a decision point? Consolidating? Breaking out?
+**Price Action** — what's the STORY of this chart?
+- What happened in each session visible on the chart?
+- Is price at a decision point? Coiling? Breaking out? Rejecting? Consolidating?
+- Any notable candle patterns (engulfing, pin bars, dojis)?
+- Momentum direction and strength
 
-5. TRADE IDEA OR WAIT:
-   - If there IS a trade: exact entry, stop loss, take profit with reasoning
-   - If there is NO trade: say so clearly and explain what you need to see
-   - What would change your mind? What confirmation are you looking for?
+**Trade Idea or Wait** — be honest:
+- If there's a setup: exact entry, stop loss, take profit, and WHY
+- If there's NO setup: say so and explain what you need to see before entering
+- What's your bias? What would invalidate it?
 
-6. WHAT ELSE YOU NEED:
-   - What timeframe would help? (e.g., "I'd want to see the 1H/4H for trend context")
-   - What indicators would help?
-   - Is a session open coming that could change things?
+**What Else You Need** — what timeframe, indicator, or session open would help you make a better call?
 
-CRITICAL RULES:
-- Do NOT fabricate trades. If the setup isn't there, say "No trade right now" and explain why.
-- Be SPECIFIC with price levels - never round or approximate. Read the exact numbers from the chart.
-- Read EVERYTHING on the chart - session boxes, volume profile, indicators, price labels.
-- If you can see the symbol in the chart header/title, identify it precisely.
-- If you cannot identify the symbol, use "UNKNOWN".
+CRITICAL: Be SPECIFIC with prices — read the exact numbers from the chart. Don't round. Don't approximate. If you can't read a number, say so.
 
-Respond ONLY with valid JSON (no markdown, no code blocks):
-{
-  "symbol": "string",
-  "direction": "buy" | "sell" | null,
-  "entry_price": number | null,
-  "stop_loss": number | null,
-  "take_profit": number | null,
-  "confidence": number (0=no trade, 1-10),
-  "reasoning": "DETAILED multi-paragraph analysis. Include ALL the context: current price, session info, what each indicator shows, volume profile reading, key levels, and your trade thesis or why you're waiting. This should be 3-6 sentences minimum - be thorough.",
-  "patterns": ["pattern1", "pattern2"],
-  "trend": "uptrend" | "downtrend" | "ranging",
-  "support_levels": [exact numbers],
-  "resistance_levels": [exact numbers],
-  "indicators_detected": ["every indicator visible on chart"],
-  "risk_reward_ratio": number | null,
-  "follow_up_suggestion": "What you'd want to see next - timeframe, indicator, or session to wait for. Null if trade is clear."
-}`
+After your full analysis, end with a JSON block on its own line formatted exactly like this:
+---TRADE_DATA---
+{"symbol":"XAUUSD","direction":"buy","entry_price":4401.50,"stop_loss":4380.00,"take_profit":4462.00,"confidence":7,"patterns":["bullish engulfing","support bounce"],"trend":"uptrend","support_levels":[4380,4351,4320],"resistance_levels":[4420,4462,4500],"indicators_detected":["VWAP","EMA 20","Volume Profile","Session Boxes"],"risk_reward_ratio":2.8,"follow_up_suggestion":"Show me the 4H for trend context"}
+
+If there is NO trade, use: {"symbol":"XAUUSD","direction":null,"entry_price":null,"stop_loss":null,"take_profit":null,"confidence":0,"patterns":[],"trend":"ranging","support_levels":[],"resistance_levels":[],"indicators_detected":[],"risk_reward_ratio":null,"follow_up_suggestion":"Wait for NY open and check the 1H"}`
 
 export async function analyzeChart(
   imageBase64: string,
   mimeType: string
-): Promise<ChartAnalysisResponse> {
+): Promise<{ text: string; analysis: ChartAnalysisResponse | null }> {
   const res = await fetch(CLAUDE_API_URL, {
     method: 'POST',
     headers: {
@@ -90,7 +66,7 @@ export async function analyzeChart(
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 1500,
+      max_tokens: 4096,
       messages: [
         {
           role: 'user',
@@ -112,52 +88,45 @@ export async function analyzeChart(
   }
 
   const data = await res.json()
-  const text = data.content?.[0]?.text || ''
-  return parseJsonResponse(text) as unknown as ChartAnalysisResponse
+  const fullText = data.content?.[0]?.text || ''
+
+  // Extract trade data from the end of the response
+  let analysis: ChartAnalysisResponse | null = null
+  let displayText = fullText
+
+  const tradeDataMatch = fullText.match(/---TRADE_DATA---\s*(\{[\s\S]*?\})/)
+  if (tradeDataMatch) {
+    try {
+      analysis = JSON.parse(tradeDataMatch[1])
+      // Remove the trade data block from display text
+      displayText = fullText.replace(/---TRADE_DATA---\s*\{[\s\S]*?\}/, '').trim()
+    } catch {
+      // If JSON parsing fails, just use the full text
+    }
+  }
+
+  return { text: displayText, analysis }
 }
 
 // ── Conversational Chart Data Analysis ────────────────────────────────
 
-const SYSTEM_PROMPT = `You are an elite institutional trader with 20+ years on a prop desk. You trade forex, commodities, and equities. You are having a conversation with a trader about their chart.
+const SYSTEM_PROMPT = `You are an elite institutional trader with 20+ years on a prop desk. You trade forex, commodities, and equities live. You are having a conversation with a trader about their chart.
 
-HOW TO ANALYZE:
-- Read EVERY data point: exact price, session context (Asia/London/NY), key levels with exact numbers
-- Identify volume profile nodes, VWAP, session highs/lows, support/resistance with SPECIFIC prices
-- Read all visible indicators: MAs, Bollinger, RSI, MACD, volume, session boxes, etc.
-- Give context: what happened in prior sessions, where are we relative to the next session open
-- Be specific about price action: is it coiling? breaking out? rejecting? consolidating?
+Analyze like you're briefing your desk — full depth, specific prices, session context, indicator readings, the whole picture.
 
-CRITICAL RULES:
-1. NEVER fabricate trades. If there's no clear setup, say so and explain what you need to see.
-2. Be SPECIFIC with prices - read exact numbers from the data, never approximate.
-3. Ask for different timeframes if needed ("I'd want to see the 4H for trend context")
-4. Suggest indicators that would help ("Add RSI - I want to check for divergence")
-5. If the trader shares Pine Script code, interpret the indicator logic.
-6. Give trade ideas ONLY when there's genuine confluence. Confidence 7+ means you'd put real money on it.
+RULES:
+1. NEVER fabricate trades. If there's no setup, say "No trade right now" and explain what you need to see.
+2. Be SPECIFIC with prices — exact numbers, never approximate.
+3. Ask for different timeframes if you need them.
+4. Suggest indicators that would help your read.
+5. If they share Pine Script code, interpret the indicator logic.
+6. Give trade ideas ONLY when there's genuine confluence.
 
-Your response MUST be valid JSON:
-{
-  "message": "Your detailed conversational response. Be thorough - cover price levels, session context, indicator readings, and your thesis. If suggesting a trade, explain the exact logic. If no trade, explain what you're watching for.",
-  "analysis": {
-    "symbol": "string",
-    "direction": "buy" | "sell" | null,
-    "entry_price": number | null,
-    "stop_loss": number | null,
-    "take_profit": number | null,
-    "confidence": number (0=no trade),
-    "reasoning": "detailed reasoning",
-    "patterns": [],
-    "trend": "uptrend" | "downtrend" | "ranging",
-    "support_levels": [exact numbers],
-    "resistance_levels": [exact numbers],
-    "indicators_detected": [],
-    "risk_reward_ratio": number | null,
-    "follow_up_suggestion": "what timeframe/indicator/session to watch next, or null"
-  }
-}
+Give your full analysis as natural text. Then IF you have a trade idea (or want to explicitly say no trade), end with:
+---TRADE_DATA---
+{"symbol":"...","direction":"buy"|"sell"|null,"entry_price":number|null,"stop_loss":number|null,"take_profit":number|null,"confidence":0-10,"patterns":[],"trend":"uptrend"|"downtrend"|"ranging","support_levels":[],"resistance_levels":[],"indicators_detected":[],"risk_reward_ratio":number|null,"follow_up_suggestion":"string or null"}
 
-Set "analysis" to null if you're just answering a question or asking for info.
-Set direction to null and confidence to 0 when there's no clear trade.`
+Only include ---TRADE_DATA--- when you're giving a definitive analysis or trade call. For casual follow-up answers, just respond naturally.`
 
 function formatOHLCForPrompt(data: OHLC[], lastN = 30): string {
   const recent = data.slice(-lastN)
@@ -168,35 +137,49 @@ function formatOHLCForPrompt(data: OHLC[], lastN = 30): string {
   return [header, ...rows].join('\n')
 }
 
+function parseClaudeResponse(fullText: string): { message: string; analysis: ChartAnalysisResponse | null } {
+  let analysis: ChartAnalysisResponse | null = null
+  let message = fullText
+
+  const tradeDataMatch = fullText.match(/---TRADE_DATA---\s*(\{[\s\S]*?\})/)
+  if (tradeDataMatch) {
+    try {
+      analysis = JSON.parse(tradeDataMatch[1])
+      message = fullText.replace(/---TRADE_DATA---\s*\{[\s\S]*?\}/, '').trim()
+    } catch { /* ignore */ }
+  }
+
+  return { message, analysis }
+}
+
 export async function analyzeChartData(
   request: AnalyzeChartDataRequest
 ): Promise<{ message: string; analysis: ChartAnalysisResponse | null }> {
   const { symbol, interval, ohlcData, indicators, pineScriptCode, conversationHistory, userMessage } = request
 
-  // Build the messages array for multi-turn conversation
   const messages: { role: string; content: string }[] = []
 
-  // Add conversation history
   for (const msg of conversationHistory) {
     messages.push({ role: msg.role, content: msg.content })
   }
 
-  // Build the current user message
   const parts: string[] = []
 
   if (userMessage) {
     parts.push(userMessage)
   } else {
-    parts.push(`Analyze this chart for ${symbol} on the ${interval} timeframe.`)
+    parts.push(`Analyze ${symbol} on the ${interval} timeframe. Give me your full read.`)
   }
 
-  parts.push(`\nOHLC Data for ${symbol} (${interval}):\n${formatOHLCForPrompt(ohlcData)}`)
+  if (ohlcData.length > 0) {
+    parts.push(`\nOHLC Data for ${symbol} (${interval}):\n${formatOHLCForPrompt(ohlcData)}`)
+  }
 
   const indicatorText = formatIndicatorsForPrompt(indicators)
   if (indicatorText) parts.push(`\n${indicatorText}`)
 
   if (pineScriptCode) {
-    parts.push(`\nUser's Pine Script indicator logic:\n\`\`\`\n${pineScriptCode}\n\`\`\`\nInterpret this indicator logic in your analysis.`)
+    parts.push(`\nTrader's custom indicator logic:\n\`\`\`\n${pineScriptCode}\n\`\`\`\nInterpret this indicator and factor it into your analysis.`)
   }
 
   messages.push({ role: 'user', content: parts.join('\n') })
@@ -210,7 +193,7 @@ export async function analyzeChartData(
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 2048,
+      max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages,
     }),
@@ -222,18 +205,9 @@ export async function analyzeChartData(
   }
 
   const data = await res.json()
-  const text = data.content?.[0]?.text || ''
+  const fullText = data.content?.[0]?.text || ''
 
-  try {
-    const parsed = parseJsonResponse(text)
-    return {
-      message: (parsed.message as string) || text,
-      analysis: parsed.analysis as ChartAnalysisResponse | null,
-    }
-  } catch {
-    // If JSON parsing fails, return the raw text as a message
-    return { message: text, analysis: null }
-  }
+  return parseClaudeResponse(fullText)
 }
 
 // ── News Sentiment Analysis ───────────────────────────────────────────
@@ -296,6 +270,8 @@ Respond ONLY with valid JSON (no markdown):
 
   const data = await res.json()
   const text = data.content?.[0]?.text || ''
-  const result = parseJsonResponse(text)
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('Failed to parse sentiment from Claude response')
+  const result = JSON.parse(jsonMatch[0])
   return (result.pairs as { pair: string; score: number; label: string; summary: string }[]) || []
 }
