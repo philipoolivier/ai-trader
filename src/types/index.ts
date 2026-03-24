@@ -28,6 +28,7 @@ export interface Trade {
   total: number
   pnl: number | null
   notes: string | null
+  ai_suggestion_id: string | null
   status: 'filled' | 'cancelled'
   created_at: string
 }
@@ -95,4 +96,71 @@ export interface PositionWithQuote extends Position {
   unrealized_pnl: number
   unrealized_pnl_percent: number
   name?: string
+}
+
+// AI Features
+export interface AiSuggestion {
+  id: string
+  portfolio_id: string
+  image_data: string | null
+  symbol: string | null
+  direction: 'buy' | 'sell' | null
+  entry_price: number | null
+  stop_loss: number | null
+  take_profit: number | null
+  confidence: number | null
+  reasoning: string | null
+  patterns: string[] | null
+  raw_analysis: ChartAnalysisResponse | null
+  status: 'pending' | 'taken' | 'skipped'
+  trade_id: string | null
+  outcome_pnl: number | null
+  created_at: string
+}
+
+export interface ChartAnalysisResponse {
+  symbol: string
+  direction: 'buy' | 'sell'
+  entry_price: number
+  stop_loss: number
+  take_profit: number
+  confidence: number
+  reasoning: string
+  patterns: string[]
+  trend: 'uptrend' | 'downtrend' | 'ranging'
+  support_levels: number[]
+  resistance_levels: number[]
+  indicators_detected: string[]
+  risk_reward_ratio: number
+}
+
+export interface NewsSentiment {
+  id: string
+  pair: string
+  sentiment_score: number
+  sentiment_label: 'bullish' | 'bearish' | 'neutral'
+  headlines: NewsHeadline[]
+  analysis_summary: string | null
+  fetched_at: string
+  expires_at: string
+}
+
+export interface NewsHeadline {
+  title: string
+  source: string
+  url: string
+  published_at: string
+  individual_score: number
+}
+
+export interface AiPerformanceStats {
+  totalSuggestions: number
+  takenCount: number
+  skippedCount: number
+  takenWinRate: number
+  takenAvgPnl: number
+  skippedWouldHaveWon: number
+  avgConfidence: number
+  bestSuggestionPnl: number
+  worstSuggestionPnl: number
 }

@@ -8,6 +8,7 @@ import {
   TrendingUp,
   Briefcase,
   BookOpen,
+  Brain,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -17,6 +18,7 @@ import { useState } from 'react'
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/trade', label: 'Trade', icon: TrendingUp },
+  { href: '/dashboard/ai', label: 'AI Analysis', icon: Brain },
   { href: '/dashboard/portfolio', label: 'Portfolio', icon: Briefcase },
   { href: '/dashboard/journal', label: 'Journal', icon: BookOpen },
 ]
