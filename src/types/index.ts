@@ -120,10 +120,10 @@ export interface AiSuggestion {
 
 export interface ChartAnalysisResponse {
   symbol: string
-  direction: 'buy' | 'sell'
-  entry_price: number
-  stop_loss: number
-  take_profit: number
+  direction: 'buy' | 'sell' | null
+  entry_price: number | null
+  stop_loss: number | null
+  take_profit: number | null
   confidence: number
   reasoning: string
   patterns: string[]
@@ -131,7 +131,41 @@ export interface ChartAnalysisResponse {
   support_levels: number[]
   resistance_levels: number[]
   indicators_detected: string[]
-  risk_reward_ratio: number
+  risk_reward_ratio: number | null
+  follow_up_suggestion?: string
+}
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  analysis?: ChartAnalysisResponse | null
+  timestamp: string
+}
+
+export type IndicatorType = 'ema' | 'sma' | 'rsi' | 'macd' | 'bollinger' | 'stochastic'
+
+export interface IndicatorConfig {
+  id: string
+  type: IndicatorType
+  params: Record<string, number>
+  visible: boolean
+}
+
+export interface IndicatorValues {
+  type: string
+  params: Record<string, number>
+  values: Record<string, (number | null)[]>
+}
+
+export interface AnalyzeChartDataRequest {
+  symbol: string
+  interval: string
+  ohlcData: OHLC[]
+  indicators: IndicatorValues[]
+  pineScriptCode?: string
+  conversationHistory: ChatMessage[]
+  userMessage?: string
 }
 
 export interface NewsSentiment {

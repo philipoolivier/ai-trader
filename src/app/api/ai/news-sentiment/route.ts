@@ -5,17 +5,24 @@ import { analyzeSentiment } from '@/lib/claude'
 
 export const maxDuration = 30
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Check cache first
-    const { data: cached } = await supabase
-      .from('news_sentiment_cache')
-      .select('*')
-      .gt('expires_at', new Date().toISOString())
-      .order('fetched_at', { ascending: false })
+    const { searchParams } = new URL(request.url)
+    const pairsParam = searchParams.get('pairs')
+    const customPairs = pairsParam ? pairsParam.split(',').map((p) => p.trim()) : undefined
+    const forceRefresh = searchParams.get('refresh') === 'true'
 
-    if (cached && cached.length > 0) {
-      return NextResponse.json(cached)
+    // Check cache first (skip if force refresh or custom pairs)
+    if (!forceRefresh && !customPairs) {
+      const { data: cached } = await supabase
+        .from('news_sentiment_cache')
+        .select('*')
+        .gt('expires_at', new Date().toISOString())
+        .order('fetched_at', { ascending: false })
+
+      if (cached && cached.length > 0) {
+        return NextResponse.json(cached)
+      }
     }
 
     // Fetch fresh news
@@ -25,9 +32,10 @@ export async function GET() {
       return NextResponse.json([])
     }
 
-    // Analyze with Claude
+    // Analyze with Claude (pass custom pairs for focused analysis)
     const sentimentResults = await analyzeSentiment(
-      headlines.map((h) => ({ title: h.title, source: h.source }))
+      headlines.map((h) => ({ title: h.title, source: h.source })),
+      customPairs
     )
 
     // Cache results

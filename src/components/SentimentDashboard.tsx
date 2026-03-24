@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { RefreshCw, TrendingUp, TrendingDown, Minus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { NewsSentiment } from '@/types'
 import { formatDistanceToNow } from 'date-fns'
@@ -11,12 +11,29 @@ export default function SentimentDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [expandedPair, setExpandedPair] = useState<string | null>(null)
+  const [customPairs, setCustomPairs] = useState<string[]>(['EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD'])
+  const [pairInput, setPairInput] = useState('')
 
-  const fetchSentiment = async () => {
+  const addPair = () => {
+    const pair = pairInput.trim().toUpperCase()
+    if (pair && !customPairs.includes(pair)) {
+      setCustomPairs([...customPairs, pair])
+      setPairInput('')
+    }
+  }
+
+  const removePair = (pair: string) => {
+    setCustomPairs(customPairs.filter((p) => p !== pair))
+  }
+
+  const fetchSentiment = async (refresh = false) => {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/ai/news-sentiment')
+      const params = new URLSearchParams()
+      if (customPairs.length > 0) params.set('pairs', customPairs.join(','))
+      if (refresh) params.set('refresh', 'true')
+      const res = await fetch(`/api/ai/news-sentiment?${params}`)
       const json = await res.json()
       if (Array.isArray(json)) {
         setData(json)
@@ -32,6 +49,7 @@ export default function SentimentDashboard() {
 
   useEffect(() => {
     fetchSentiment()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const getSentimentIcon = (label: string) => {
@@ -67,7 +85,7 @@ export default function SentimentDashboard() {
       <div className="bg-surface-1 rounded-xl border border-surface-3 p-8 text-center">
         <p className="text-loss text-sm mb-3">{error}</p>
         <button
-          onClick={fetchSentiment}
+          onClick={() => fetchSentiment()}
           className="px-4 py-2 bg-surface-2 hover:bg-surface-3 text-text-secondary text-sm rounded-lg transition-colors"
         >
           Retry
@@ -78,6 +96,46 @@ export default function SentimentDashboard() {
 
   return (
     <div className="space-y-4">
+      {/* Custom Pairs */}
+      <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
+        <span className="text-sm font-medium text-text-secondary block mb-2">Watchlist Pairs</span>
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {customPairs.map((pair) => (
+            <span
+              key={pair}
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-surface-2 text-text-primary text-xs rounded-lg"
+            >
+              {pair}
+              <button onClick={() => removePair(pair)} className="text-text-muted hover:text-loss transition-colors">
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={pairInput}
+            onChange={(e) => setPairInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addPair()}
+            placeholder="Add pair (e.g. EUR/GBP)"
+            className="flex-1 px-3 py-2 text-sm bg-surface-2 border border-surface-4 rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:ring-1 focus:ring-brand-600"
+          />
+          <button
+            onClick={addPair}
+            className="px-3 py-2 text-sm bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors"
+          >
+            Add
+          </button>
+          <button
+            onClick={() => fetchSentiment(true)}
+            disabled={loading}
+            className="px-3 py-2 bg-surface-2 hover:bg-surface-3 text-text-secondary rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+      </div>
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium text-text-secondary">Currency Pair Sentiment</h3>
@@ -87,13 +145,7 @@ export default function SentimentDashboard() {
             </span>
           )}
         </div>
-        <button
-          onClick={fetchSentiment}
-          disabled={loading}
-          className="p-2 rounded-lg bg-surface-2 hover:bg-surface-3 text-text-secondary transition-colors disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-        </button>
+        <span className="text-xs text-text-muted">Use controls above to refresh</span>
       </div>
 
       {data.length === 0 ? (

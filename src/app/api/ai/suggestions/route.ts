@@ -39,3 +39,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { id } = await request.json()
+
+    if (!id) {
+      return NextResponse.json({ error: 'Suggestion ID required' }, { status: 400 })
+    }
+
+    const { error } = await supabase
+      .from('ai_suggestions')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to delete suggestion'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}

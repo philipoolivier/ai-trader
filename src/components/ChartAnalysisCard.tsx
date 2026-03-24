@@ -26,11 +26,14 @@ export default function ChartAnalysisCard({
   const [acted, setActed] = useState(false)
 
   const isBuy = analysis.direction === 'buy'
-  const riskAmount = Math.abs(analysis.entry_price - analysis.stop_loss)
-  const rewardAmount = Math.abs(analysis.take_profit - analysis.entry_price)
+  const entryPrice = analysis.entry_price || 0
+  const stopLoss = analysis.stop_loss || 0
+  const takeProfit = analysis.take_profit || 0
+  const riskAmount = Math.abs(entryPrice - stopLoss)
+  const rewardAmount = Math.abs(takeProfit - entryPrice)
 
   const handleTake = async () => {
-    if (!symbol || !quantity) return
+    if (!symbol || !quantity || !analysis.direction) return
     setLoading(true)
     onTakeTrade(symbol, analysis.direction, parseInt(quantity))
     setActed(true)
@@ -69,7 +72,7 @@ export default function ChartAnalysisCard({
                 'text-xs font-bold px-2 py-0.5 rounded',
                 isBuy ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss'
               )}>
-                {analysis.direction.toUpperCase()}
+                {analysis.direction?.toUpperCase()}
               </span>
             </div>
             <span className="text-sm text-text-secondary capitalize">{analysis.trend}</span>
@@ -97,7 +100,7 @@ export default function ChartAnalysisCard({
               <span className="text-xs text-text-muted">Entry</span>
             </div>
             <span className="text-sm font-bold text-text-primary">
-              {formatCurrency(analysis.entry_price)}
+              {formatCurrency(entryPrice)}
             </span>
           </div>
           <div className="bg-surface-2 rounded-lg p-3">
@@ -106,7 +109,7 @@ export default function ChartAnalysisCard({
               <span className="text-xs text-text-muted">Stop Loss</span>
             </div>
             <span className="text-sm font-bold text-loss">
-              {formatCurrency(analysis.stop_loss)}
+              {formatCurrency(stopLoss)}
             </span>
           </div>
           <div className="bg-surface-2 rounded-lg p-3">
@@ -115,7 +118,7 @@ export default function ChartAnalysisCard({
               <span className="text-xs text-text-muted">Take Profit</span>
             </div>
             <span className="text-sm font-bold text-profit">
-              {formatCurrency(analysis.take_profit)}
+              {formatCurrency(takeProfit)}
             </span>
           </div>
         </div>
@@ -124,7 +127,7 @@ export default function ChartAnalysisCard({
         <div>
           <div className="flex justify-between text-xs text-text-muted mb-1.5">
             <span>Risk: {formatCurrency(riskAmount)}</span>
-            <span>R:R {analysis.risk_reward_ratio.toFixed(1)}:1</span>
+            <span>R:R {(analysis.risk_reward_ratio || 0).toFixed(1)}:1</span>
             <span>Reward: {formatCurrency(rewardAmount)}</span>
           </div>
           <div className="flex h-2 rounded-full overflow-hidden">
@@ -229,7 +232,7 @@ export default function ChartAnalysisCard({
                 className="w-full px-4 py-2.5 bg-surface-2 border border-surface-4 rounded-lg text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
               />
               <span className="text-xs text-text-muted mt-1 block">
-                Est. cost: {formatCurrency(analysis.entry_price * (parseInt(quantity) || 0))} | Cash: {formatCurrency(cashBalance)}
+                Est. cost: {formatCurrency(entryPrice * (parseInt(quantity) || 0))} | Cash: {formatCurrency(cashBalance)}
               </span>
             </div>
 
@@ -242,7 +245,7 @@ export default function ChartAnalysisCard({
                   isBuy ? 'bg-profit hover:bg-green-600' : 'bg-loss hover:bg-red-600'
                 )}
               >
-                {loading ? 'Executing...' : `Take Trade - ${analysis.direction.toUpperCase()} ${symbol}`}
+                {loading ? 'Executing...' : `Take Trade - ${analysis.direction?.toUpperCase()} ${symbol}`}
               </button>
               <button
                 onClick={handleSkip}
