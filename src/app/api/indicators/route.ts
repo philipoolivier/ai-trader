@@ -41,7 +41,9 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      return NextResponse.json({ error: `Database error: ${error.message}. Have you run supabase/migration-indicators.sql?` }, { status: 500 })
+    }
     return NextResponse.json(data)
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to save indicator'

@@ -89,7 +89,7 @@ export default function AiChart({
 
   if (!symbol) {
     return (
-      <div className="bg-surface-1 rounded-xl border border-surface-3 h-[500px] flex items-center justify-center text-text-muted text-sm">
+      <div className="bg-surface-1 rounded-xl border border-surface-3 h-[650px] flex items-center justify-center text-text-muted text-sm">
         Select a symbol to view chart
       </div>
     )
@@ -129,7 +129,7 @@ export default function AiChart({
       <TradingViewChart
         symbol={symbol}
         interval={interval}
-        height={500}
+        height={650}
         studies={memoizedStudies}
       />
     </div>

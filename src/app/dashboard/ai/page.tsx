@@ -337,7 +337,7 @@ export default function AiPage() {
 
       {/* ── Live Chart Tab ── */}
       {tab === 'live' && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* Watchlist Sidebar */}
           <div className="lg:col-span-1">
             <Watchlist
@@ -351,7 +351,7 @@ export default function AiPage() {
           </div>
 
           {/* Main Chart Area */}
-          <div className="lg:col-span-3 space-y-4">
+          <div className="lg:col-span-4 space-y-4">
             <StockSearch
               onSelect={(symbol, name) => {
                 setSelectedSymbol(symbol)
