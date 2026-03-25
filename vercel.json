@@ -1,7 +1,8 @@
 {
   "framework": "nextjs",
   "functions": {
-    "src/app/api/ai/analyze-chart/route.ts": { "maxDuration": 30 },
-    "src/app/api/ai/news-sentiment/route.ts": { "maxDuration": 30 }
+    "src/app/api/ai/analyze-chart/route.ts": { "maxDuration": 60 },
+    "src/app/api/ai/analyze-chart-data/route.ts": { "maxDuration": 60 },
+    "src/app/api/ai/news-sentiment/route.ts": { "maxDuration": 60 }
   }
 }

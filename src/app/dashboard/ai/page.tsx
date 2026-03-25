@@ -14,6 +14,7 @@ import ImageDropZone from '@/components/ImageDropZone'
 import ChartAnalysisCard from '@/components/ChartAnalysisCard'
 import SentimentDashboard from '@/components/SentimentDashboard'
 import AiStatsPanel from '@/components/AiStatsPanel'
+import AnalysisDisplay from '@/components/AnalysisDisplay'
 import type {
   ChartAnalysisResponse,
   AiSuggestion,
@@ -501,35 +502,16 @@ export default function AiPage() {
             </div>
           )}
 
-          {/* Full Analysis Text */}
-          {screenshotText && (
-            <div className="bg-surface-1 rounded-xl border border-surface-3 p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Brain size={18} className="text-brand-400" />
-                <span className="text-sm font-medium text-text-primary">Analysis</span>
-              </div>
-              <div className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
-                {screenshotText}
-              </div>
-            </div>
-          )}
-
-          {/* Trade suggestion card (if there's a trade) */}
-          {screenshotAnalysis && screenshotSuggestionId && screenshotAnalysis.direction && screenshotAnalysis.confidence > 0 && (
-            <ChartAnalysisCard
+          {/* Analysis Display */}
+          {(screenshotText || screenshotAnalysis) && (
+            <AnalysisDisplay
+              text={screenshotText}
               analysis={screenshotAnalysis}
               suggestionId={screenshotSuggestionId}
-              onTakeTrade={handleScreenshotTakeTrade}
-              onSkip={handleScreenshotSkip}
               cashBalance={portfolio?.cash_balance || 0}
+              onTakeTrade={(symbol, side, qty) => handleScreenshotTakeTrade(symbol, side, qty)}
+              onSkip={handleScreenshotSkip}
             />
-          )}
-
-          {screenshotAnalysis?.follow_up_suggestion && (
-            <div className="bg-brand-600/5 border border-brand-600/20 rounded-lg px-4 py-3">
-              <span className="text-xs text-text-muted">Suggestion: </span>
-              <span className="text-sm text-brand-400">{screenshotAnalysis.follow_up_suggestion}</span>
-            </div>
           )}
 
           {/* Screenshot History */}

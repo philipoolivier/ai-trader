@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 const DEFAULT_USER_ID = 'default-user'
 const INITIAL_BALANCE = 500
 
-export const maxDuration = 30
+export const maxDuration = 60
 
 export async function POST(request: Request) {
   try {
@@ -47,30 +47,31 @@ export async function POST(request: Request) {
       portfolio = newPortfolio
     }
 
-    // Save suggestion if there's a trade recommendation
+    // Try to save suggestion — don't let DB errors block the response
     let suggestionId: string | null = null
-    if (result.analysis?.direction && result.analysis.confidence > 0) {
-      const { data: suggestion, error: sugErr } = await supabase
-        .from('ai_suggestions')
-        .insert({
-          portfolio_id: portfolio!.id,
-          symbol: result.analysis.symbol,
-          direction: result.analysis.direction,
-          entry_price: result.analysis.entry_price,
-          stop_loss: result.analysis.stop_loss,
-          take_profit: result.analysis.take_profit,
-          confidence: result.analysis.confidence,
-          reasoning: result.text.slice(0, 2000),
-          patterns: result.analysis.patterns,
-          raw_analysis: result.analysis as unknown as Record<string, unknown>,
-          status: 'pending',
-        })
-        .select('id')
-        .single()
-
-      if (!sugErr && suggestion) {
-        suggestionId = suggestion.id
+    try {
+      if (result.analysis?.direction && result.analysis.confidence > 0 && portfolio) {
+        const { data: suggestion } = await supabase
+          .from('ai_suggestions')
+          .insert({
+            portfolio_id: portfolio.id,
+            symbol: result.analysis.symbol,
+            direction: result.analysis.direction,
+            entry_price: result.analysis.entry_price,
+            stop_loss: result.analysis.stop_loss,
+            take_profit: result.analysis.take_profit,
+            confidence: result.analysis.confidence,
+            reasoning: result.text.slice(0, 2000),
+            patterns: result.analysis.patterns,
+            raw_analysis: result.analysis as unknown as Record<string, unknown>,
+            status: 'pending',
+          })
+          .select('id')
+          .single()
+        if (suggestion) suggestionId = suggestion.id
       }
+    } catch {
+      // DB save failed — still return analysis
     }
 
     return NextResponse.json({
