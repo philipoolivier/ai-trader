@@ -10,53 +10,80 @@ function getApiKey(): string {
 
 // ── Screenshot Analysis (image-based) ─────────────────────────────────
 
-const CHART_ANALYSIS_PROMPT = `You are an elite institutional forex/commodities/equities trader with 20+ years on a prop desk. Analyze this chart screenshot exactly like you would brief your trading desk.
+function getChartAnalysisPrompt(): string {
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
 
-Give me your FULL read — don't hold back. Cover:
+  return `You are an elite institutional forex/commodities/equities trader with 20+ years on a prop desk. Today is ${dateStr}, ${timeStr}. Analyze this chart screenshot exactly like you would brief your trading desk in a morning meeting.
 
-**Current Price & Context** — exact price, what time/session (Asia, London, NY pre-market, NY open), where in the session range
+USE YOUR FULL KNOWLEDGE. Factor in:
+- Current macro environment (what you know about Fed policy, geopolitics, recent moves in this instrument)
+- Recent price action context (has this instrument been trending, reversing, consolidating?)
+- Relevant upcoming events (Fed speakers, data releases, geopolitical catalysts)
 
-**Key Levels** — read EVERY level you can see. Be specific with exact prices:
-- Resistance levels with exact numbers
-- Support levels with exact numbers
-- Volume profile / VPVR nodes if visible (where are the high volume nodes?)
-- Session highs and lows (Asia H/L, London H/L, prior day H/L)
-- VWAP if visible
-- Any horizontal levels, order blocks, or liquidity zones
+Give me your COMPLETE analysis. Be as detailed and specific as when a senior trader briefs the desk. Use markdown formatting for readability.
 
-**Indicator Analysis** — read EVERY indicator on the chart:
-- Moving averages (which ones, trending direction, any crosses?)
-- Bollinger Bands / channels (expansion? contraction? which band is price touching?)
-- Volume profile reading
-- Any session boxes, overlays, custom indicators
-- RSI, MACD, Stochastic, or any oscillators if visible
-- Describe what the indicators ARE telling you, not just that they exist
+## Structure your analysis like this:
 
-**Price Action** — what's the STORY of this chart?
-- What happened in each session visible on the chart?
-- Is price at a decision point? Coiling? Breaking out? Rejecting? Consolidating?
-- Any notable candle patterns (engulfing, pin bars, dojis)?
-- Momentum direction and strength
+### Macro Context
+What's driving this instrument right now? Recent moves, catalysts, fundamental backdrop. Connect the chart to the bigger picture.
 
-**Trade Idea or Wait** — be honest:
-- If there's a setup: exact entry, stop loss, take profit, and WHY
-- If there's NO setup: say so and explain what you need to see before entering
-- What's your bias? What would invalidate it?
+### Chart Structure
+Read the chart session by session. What happened in Asia? London? NY? What's the intraday narrative? (e.g., "Asia pumps, London distributes, NY dumps")
 
-**What Else You Need** — what timeframe, indicator, or session open would help you make a better call?
+### Key Levels
+Build a table of every key level you can read from the chart. Include:
+- Volume profile levels (POC, VAH, VAL) if visible
+- Session highs/lows (AS.H, AS.L, LO.H, LO.L, NYAM.H, NYAM.L, NYPM.H, NYPM.L)
+- Previous day high/low (PDH, PDL)
+- VWAP
+- Any visible support/resistance, order blocks, or liquidity zones
+Format as: Level | Price | Significance
 
-CRITICAL: Be SPECIFIC with prices — read the exact numbers from the chart. Don't round. Don't approximate. If you can't read a number, say so.
+### Indicator Reading
+Read EVERY indicator visible on the chart. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume profile showing distribution or accumulation?
 
-After your full analysis, end with a JSON block on its own line formatted exactly like this:
+### Trade Scenarios
+Give me SPECIFIC trade scenarios with exact entries, stops, and targets:
+
+**SCENARIO A — [Primary Bias]**
+- Trigger: What needs to happen
+- Entry: Exact price
+- Stop: Exact price and why there
+- Target 1: Price + why (partial close)
+- Target 2: Price + why
+- R:R ratio
+- Why this works
+
+**SCENARIO B — [Counter-trend / Alternative]**
+- Same format
+- Why this is lower/higher conviction
+
+### Overall Bias
+What's your lean? What invalidates it? What would flip you the other way?
+
+### Risk Events
+What upcoming events could move this? When should the trader be flat/reduced?
+
+CRITICAL RULES:
+- Read EXACT prices from the chart. Never approximate.
+- Give SPECIFIC entries, stops, targets — not vague zones.
+- If there's no clear trade, say so and explain what you need to see.
+- Don't hedge everything — take a stance, explain your reasoning.
+- Use your macro knowledge. Don't just read the chart in isolation.
+
+After your FULL analysis, on a new line, append this structured data block for the UI to parse:
 ---TRADE_DATA---
-{"symbol":"XAUUSD","direction":"buy","entry_price":4401.50,"stop_loss":4380.00,"take_profit":4462.00,"confidence":7,"patterns":["bullish engulfing","support bounce"],"trend":"uptrend","support_levels":[4380,4351,4320],"resistance_levels":[4420,4462,4500],"indicators_detected":["VWAP","EMA 20","Volume Profile","Session Boxes"],"risk_reward_ratio":2.8,"follow_up_suggestion":"Show me the 4H for trend context"}
-
-If there is NO trade, use: {"symbol":"XAUUSD","direction":null,"entry_price":null,"stop_loss":null,"take_profit":null,"confidence":0,"patterns":[],"trend":"ranging","support_levels":[],"resistance_levels":[],"indicators_detected":[],"risk_reward_ratio":null,"follow_up_suggestion":"Wait for NY open and check the 1H"}`
+{"symbol":"XAUUSD","direction":"buy_or_sell_or_null","entry_price":0,"stop_loss":0,"take_profit":0,"confidence":0_to_10,"patterns":[],"trend":"uptrend_downtrend_ranging","support_levels":[],"resistance_levels":[],"indicators_detected":[],"risk_reward_ratio":0,"follow_up_suggestion":"string_or_null"}`
+}
 
 export async function analyzeChart(
   imageBase64: string,
   mimeType: string
 ): Promise<{ text: string; analysis: ChartAnalysisResponse | null }> {
+  const prompt = getChartAnalysisPrompt()
+
   const res = await fetch(CLAUDE_API_URL, {
     method: 'POST',
     headers: {
@@ -66,7 +93,7 @@ export async function analyzeChart(
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 8000,
       messages: [
         {
           role: 'user',
@@ -75,7 +102,7 @@ export async function analyzeChart(
               type: 'image',
               source: { type: 'base64', media_type: mimeType, data: imageBase64 },
             },
-            { type: 'text', text: CHART_ANALYSIS_PROMPT },
+            { type: 'text', text: prompt },
           ],
         },
       ],
