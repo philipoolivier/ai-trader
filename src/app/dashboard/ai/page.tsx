@@ -11,7 +11,6 @@ import AiChat from '@/components/AiChat'
 import Watchlist from '@/components/Watchlist'
 import IndicatorLibrary from '@/components/IndicatorLibrary'
 import ImageDropZone from '@/components/ImageDropZone'
-import ChartAnalysisCard from '@/components/ChartAnalysisCard'
 import SentimentDashboard from '@/components/SentimentDashboard'
 import AiStatsPanel from '@/components/AiStatsPanel'
 import AnalysisDisplay from '@/components/AnalysisDisplay'
@@ -22,8 +21,6 @@ import type {
   ChatMessage,
   IndicatorConfig,
   CustomIndicator,
-  OHLC,
-  IndicatorValues,
 } from '@/types'
 
 type Tab = 'live' | 'screenshot' | 'sentiment'
@@ -43,8 +40,6 @@ export default function AiPage() {
   const [activeCustomIndicators, setActiveCustomIndicators] = useState<CustomIndicator[]>([])
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatSending, setChatSending] = useState(false)
-  const [currentOhlc, setCurrentOhlc] = useState<OHLC[]>([])
-  const [currentIndicatorValues, setCurrentIndicatorValues] = useState<IndicatorValues[]>([])
   const [pendingSuggestionId, setPendingSuggestionId] = useState<string | null>(null)
 
   // Live chart screenshot state
@@ -80,86 +75,77 @@ export default function AiPage() {
     fetchHistory()
   }, [fetchPortfolio, fetchHistory])
 
-  // Combine manual Pine Script + active custom indicators into one context string
-  const buildPineScriptContext = () => {
-    const parts: string[] = []
-    if (pineScript.trim()) parts.push(`// Manual Pine Script:\n${pineScript}`)
-    for (const ind of activeCustomIndicators) {
-      parts.push(`// Custom Indicator: ${ind.name}${ind.description ? ` - ${ind.description}` : ''}\n${ind.pine_script}`)
+  // ── Screenshot analysis (used by both Live Chart and Screenshot tabs) ──
+
+  const analyzeScreenshot = async (base64: string, mimeType: string, addToChat: boolean) => {
+    if (addToChat) {
+      setLiveScreenshotAnalyzing(true)
+      setLiveScreenshotError('')
+      setChatSending(true)
+      setChatMessages((prev) => [...prev, {
+        id: `user-${Date.now()}`, role: 'user',
+        content: `Analyze this ${selectedSymbol || ''} chart screenshot.`,
+        timestamp: new Date().toISOString(),
+      }])
+    } else {
+      setAnalyzing(true)
+      setScreenshotError('')
+      setScreenshotAnalysis(null)
+      setScreenshotSuggestionId(null)
+      setScreenshotText('')
+      setScreenshotMessage(null)
     }
-    return parts.length > 0 ? parts.join('\n\n') : undefined
-  }
-
-  // ── Live Chart handlers ──
-
-  const handleAnalyzeChart = async (ohlcData: OHLC[], indicatorValues: IndicatorValues[]) => {
-    if (!selectedSymbol) return
-    setCurrentOhlc(ohlcData)
-    setCurrentIndicatorValues(indicatorValues)
-    setChatSending(true)
-
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: `Analyze this ${selectedSymbol} chart on the ${interval} timeframe.`,
-      timestamp: new Date().toISOString(),
-    }
-    setChatMessages((prev) => [...prev, userMsg])
 
     try {
-      const res = await fetch('/api/ai/analyze-chart-data', {
+      const res = await fetch('/api/ai/analyze-chart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol: selectedSymbol,
-          interval,
-          ohlcData,
-          indicators: indicatorValues,
-          pineScriptCode: buildPineScriptContext(),
-          conversationHistory: chatMessages.map((m) => ({ ...m })),
-          userMessage: undefined,
-        }),
+        body: JSON.stringify({ image: base64, mimeType }),
       })
       const data = await res.json()
 
-      if (res.ok) {
-        if (data.suggestionId) setPendingSuggestionId(data.suggestionId)
-        const assistantMsg: ChatMessage = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: data.message || data.analysis?.reasoning || 'Analysis complete.',
-          analysis: data.analysis || null,
-          timestamp: new Date().toISOString(),
+      if (res.ok && (data.text || data.analysis)) {
+        if (addToChat) {
+          if (data.suggestionId) setPendingSuggestionId(data.suggestionId)
+          setChatMessages((prev) => [...prev, {
+            id: `assistant-${Date.now()}`, role: 'assistant',
+            content: data.text || data.analysis?.reasoning || 'Analysis complete.',
+            analysis: data.analysis || null,
+            timestamp: new Date().toISOString(),
+          }])
+        } else {
+          setScreenshotText(data.text || '')
+          setScreenshotAnalysis(data.analysis || null)
+          setScreenshotSuggestionId(data.suggestionId)
         }
-        setChatMessages((prev) => [...prev, assistantMsg])
+        fetchHistory()
       } else {
-        const errMsg: ChatMessage = {
-          id: `err-${Date.now()}`,
-          role: 'assistant',
-          content: `Error: ${data.error || 'Analysis failed'}`,
-          timestamp: new Date().toISOString(),
+        const errMsg = data.error || 'Analysis failed'
+        if (addToChat) {
+          setLiveScreenshotError(errMsg)
+          setChatMessages((prev) => [...prev, {
+            id: `err-${Date.now()}`, role: 'assistant',
+            content: `Error: ${errMsg}`, timestamp: new Date().toISOString(),
+          }])
+        } else {
+          setScreenshotError(errMsg)
         }
-        setChatMessages((prev) => [...prev, errMsg])
       }
     } catch {
-      setChatMessages((prev) => [...prev, {
-        id: `err-${Date.now()}`, role: 'assistant',
-        content: 'Failed to connect to AI. Please try again.',
-        timestamp: new Date().toISOString(),
-      }])
+      if (addToChat) setLiveScreenshotError('Failed to analyze screenshot')
+      else setScreenshotError('Failed to analyze chart.')
     } finally {
-      setChatSending(false)
-      fetchHistory()
+      if (addToChat) { setLiveScreenshotAnalyzing(false); setChatSending(false) }
+      else setAnalyzing(false)
     }
   }
+
+  // ── Chat follow-up (text-based, uses OHLC data endpoint) ──
 
   const handleChatSend = async (text: string) => {
     setChatSending(true)
     const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: text,
-      timestamp: new Date().toISOString(),
+      id: `user-${Date.now()}`, role: 'user', content: text, timestamp: new Date().toISOString(),
     }
     const updatedMessages = [...chatMessages, userMsg]
     setChatMessages(updatedMessages)
@@ -171,9 +157,9 @@ export default function AiPage() {
         body: JSON.stringify({
           symbol: selectedSymbol,
           interval,
-          ohlcData: currentOhlc,
-          indicators: currentIndicatorValues,
-          pineScriptCode: buildPineScriptContext(),
+          ohlcData: [],
+          indicators: [],
+          pineScriptCode: undefined,
           conversationHistory: updatedMessages.map((m) => ({
             id: m.id, role: m.role, content: m.content, timestamp: m.timestamp,
           })),
@@ -181,27 +167,23 @@ export default function AiPage() {
         }),
       })
       const data = await res.json()
-
       if (res.ok) {
         if (data.suggestionId) setPendingSuggestionId(data.suggestionId)
         setChatMessages((prev) => [...prev, {
           id: `assistant-${Date.now()}`, role: 'assistant',
           content: data.message || 'Analysis complete.',
-          analysis: data.analysis || null,
-          timestamp: new Date().toISOString(),
+          analysis: data.analysis || null, timestamp: new Date().toISOString(),
         }])
       } else {
         setChatMessages((prev) => [...prev, {
           id: `err-${Date.now()}`, role: 'assistant',
-          content: `Error: ${data.error}`,
-          timestamp: new Date().toISOString(),
+          content: `Error: ${data.error}`, timestamp: new Date().toISOString(),
         }])
       }
     } catch {
       setChatMessages((prev) => [...prev, {
         id: `err-${Date.now()}`, role: 'assistant',
-        content: 'Failed to connect. Please try again.',
-        timestamp: new Date().toISOString(),
+        content: 'Failed to connect. Please try again.', timestamp: new Date().toISOString(),
       }])
     } finally {
       setChatSending(false)
@@ -214,143 +196,45 @@ export default function AiPage() {
       const res = await fetch('/api/ai/take-trade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          suggestionId,
-          symbol: analysis.symbol || selectedSymbol,
-          side: analysis.direction,
-          quantity: 1,
-        }),
+        body: JSON.stringify({ suggestionId, symbol: analysis.symbol || selectedSymbol, side: analysis.direction, quantity: 1 }),
       })
       const data = await res.json()
-      if (res.ok) {
-        setScreenshotMessage({ type: 'success', text: data.message })
-        fetchPortfolio()
-        fetchHistory()
-      }
+      if (res.ok) { fetchPortfolio(); fetchHistory() }
     } catch { /* ignore */ }
   }
 
   const handleChatSkip = async (suggestionId: string) => {
     try {
       await fetch('/api/ai/skip-suggestion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ suggestionId }),
       })
       fetchHistory()
     } catch { /* ignore */ }
   }
 
-  // ── Live chart screenshot handler (sends image to Claude, result goes to chat) ──
-
-  const handleLiveChartScreenshot = async (base64: string, mimeType: string) => {
-    setLiveScreenshotAnalyzing(true)
-    setLiveScreenshotError('')
-    setChatSending(true)
-
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: `Analyze this ${selectedSymbol} chart screenshot (${interval} timeframe) with all visible indicators.`,
-      timestamp: new Date().toISOString(),
-    }
-    setChatMessages((prev) => [...prev, userMsg])
-
-    try {
-      const res = await fetch('/api/ai/analyze-chart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mimeType }),
-      })
-      const data = await res.json()
-
-      if (res.ok && (data.text || data.analysis)) {
-        if (data.suggestionId) setPendingSuggestionId(data.suggestionId)
-        const assistantMsg: ChatMessage = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: data.text || data.analysis?.reasoning || 'Analysis complete.',
-          analysis: data.analysis || null,
-          timestamp: new Date().toISOString(),
-        }
-        setChatMessages((prev) => [...prev, assistantMsg])
-        fetchHistory()
-      } else {
-        setLiveScreenshotError(data.error || 'Analysis failed')
-        setChatMessages((prev) => [...prev, {
-          id: `err-${Date.now()}`, role: 'assistant',
-          content: `Error: ${data.error || 'Analysis failed'}`,
-          timestamp: new Date().toISOString(),
-        }])
-      }
-    } catch {
-      setLiveScreenshotError('Failed to analyze screenshot')
-    } finally {
-      setLiveScreenshotAnalyzing(false)
-      setChatSending(false)
-    }
-  }
-
-  // ── Screenshot tab handlers ──
-
-  const handleImageReady = async (base64: string, mimeType: string) => {
-    setAnalyzing(true)
-    setScreenshotError('')
-    setScreenshotAnalysis(null)
-    setScreenshotSuggestionId(null)
-    setScreenshotMessage(null)
-    setScreenshotText('')
-
-    try {
-      const res = await fetch('/api/ai/analyze-chart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mimeType }),
-      })
-      const data = await res.json()
-
-      if (res.ok && (data.text || data.analysis)) {
-        setScreenshotText(data.text || '')
-        setScreenshotAnalysis(data.analysis || null)
-        setScreenshotSuggestionId(data.suggestionId)
-        fetchHistory()
-      } else {
-        setScreenshotError(data.error || 'Analysis failed')
-      }
-    } catch {
-      setScreenshotError('Failed to analyze chart.')
-    } finally {
-      setAnalyzing(false)
-    }
-  }
-
   const handleScreenshotTakeTrade = async (symbol: string, side: 'buy' | 'sell', quantity: number) => {
     if (!screenshotSuggestionId) return
     try {
       const res = await fetch('/api/ai/take-trade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ suggestionId: screenshotSuggestionId, symbol, side, quantity }),
       })
       const data = await res.json()
       if (res.ok) {
         setScreenshotMessage({ type: 'success', text: data.message })
-        fetchPortfolio()
-        fetchHistory()
+        fetchPortfolio(); fetchHistory()
       } else {
         setScreenshotMessage({ type: 'error', text: data.error })
       }
-    } catch {
-      setScreenshotMessage({ type: 'error', text: 'Failed to execute trade' })
-    }
+    } catch { setScreenshotMessage({ type: 'error', text: 'Failed to execute trade' }) }
   }
 
   const handleScreenshotSkip = async () => {
     if (!screenshotSuggestionId) return
     try {
       await fetch('/api/ai/skip-suggestion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ suggestionId: screenshotSuggestionId }),
       })
       fetchHistory()
@@ -360,8 +244,7 @@ export default function AiPage() {
   const handleDeleteSuggestion = async (id: string) => {
     try {
       await fetch('/api/ai/suggestions', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       })
       setHistory((prev) => prev.filter((s) => s.id !== id))
@@ -379,16 +262,10 @@ export default function AiPage() {
           { key: 'screenshot', label: 'Screenshot', icon: ImageIcon },
           { key: 'sentiment', label: 'News Sentiment', icon: BarChart2 },
         ] as const).map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-              tab === key ? 'bg-brand-600 text-white' : 'text-text-secondary hover:text-text-primary'
-            )}
-          >
-            <Icon size={16} />
-            {label}
+          <button key={key} onClick={() => setTab(key)}
+            className={cn('flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
+              tab === key ? 'bg-brand-600 text-white' : 'text-text-secondary hover:text-text-primary')}>
+            <Icon size={16} />{label}
           </button>
         ))}
       </div>
@@ -396,29 +273,16 @@ export default function AiPage() {
       {/* ── Live Chart Tab ── */}
       {tab === 'live' && (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* Watchlist Sidebar */}
           <div className="lg:col-span-1">
-            <Watchlist
-              onSymbolClick={(sym) => {
-                setSelectedSymbol(sym)
-                setSelectedName('')
-                setChatMessages([])
-                setPendingSuggestionId(null)
-              }}
-            />
+            <Watchlist onSymbolClick={(sym) => {
+              setSelectedSymbol(sym); setSelectedName(''); setChatMessages([]); setPendingSuggestionId(null)
+            }} />
           </div>
 
-          {/* Main Chart Area */}
           <div className="lg:col-span-4 space-y-4">
-            <StockSearch
-              onSelect={(symbol, name) => {
-                setSelectedSymbol(symbol)
-                setSelectedName(name)
-                setChatMessages([])
-                setPendingSuggestionId(null)
-              }}
-              placeholder="Search stocks, forex, crypto..."
-            />
+            <StockSearch onSelect={(symbol, name) => {
+              setSelectedSymbol(symbol); setSelectedName(name); setChatMessages([]); setPendingSuggestionId(null)
+            }} placeholder="Search stocks, forex, crypto..." />
 
             {selectedSymbol && (
               <>
@@ -428,57 +292,35 @@ export default function AiPage() {
                 </div>
 
                 <IndicatorPanel
-                  indicators={indicators}
-                  onIndicatorsChange={setIndicators}
-                  pineScript={pineScript}
-                  onPineScriptChange={setPineScript}
-                  tvStudies={tvStudies}
-                  onTvStudiesChange={setTvStudies}
+                  indicators={indicators} onIndicatorsChange={setIndicators}
+                  pineScript={pineScript} onPineScriptChange={setPineScript}
+                  tvStudies={tvStudies} onTvStudiesChange={setTvStudies}
                 />
 
-                <IndicatorLibrary
-                  activeIndicators={activeCustomIndicators}
-                  onActiveChange={setActiveCustomIndicators}
-                />
+                <IndicatorLibrary activeIndicators={activeCustomIndicators} onActiveChange={setActiveCustomIndicators} />
 
-                <AiChart
-                  symbol={selectedSymbol}
-                  interval={interval}
-                  onIntervalChange={setInterval}
-                  indicators={indicators}
-                  onAnalyze={handleAnalyzeChart}
-                  analyzing={chatSending}
-                  tvStudies={tvStudies}
-                />
+                <AiChart symbol={selectedSymbol} interval={interval} onIntervalChange={setInterval} tvStudies={tvStudies} />
 
-                {/* Screenshot & Analyze section */}
+                {/* Screenshot & Analyze */}
                 <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-2">
                     <ImageIcon size={16} className="text-brand-400" />
                     <span className="text-sm font-medium text-text-primary">Screenshot & Analyze</span>
                   </div>
                   <p className="text-xs text-text-muted mb-3">
-                    Take a screenshot of the chart above (with your indicators loaded) and paste it here with <span className="text-brand-400 font-medium">Ctrl+V</span>. Claude will analyze exactly what you see — including your custom indicators.
+                    Screenshot the chart above (with your indicators) and paste here with <span className="text-brand-400 font-medium">Ctrl+V</span>. Claude analyzes exactly what you see.
                   </p>
-                  <ImageDropZone
-                    onImageReady={handleLiveChartScreenshot}
-                    analyzing={liveScreenshotAnalyzing}
-                  />
+                  <ImageDropZone onImageReady={(b64, mime) => analyzeScreenshot(b64, mime, true)} analyzing={liveScreenshotAnalyzing} />
                 </div>
 
                 {liveScreenshotError && (
                   <div className="bg-loss/10 text-loss px-4 py-3 rounded-lg text-sm">{liveScreenshotError}</div>
                 )}
 
-                <AiChat
-                  messages={chatMessages}
-                  onSendMessage={handleChatSend}
-                  onTakeTrade={handleChatTakeTrade}
-                  onSkip={handleChatSkip}
-                  sending={chatSending}
-                  cashBalance={portfolio?.cash_balance || 0}
-                  pendingSuggestionId={pendingSuggestionId}
-                />
+                <AiChat messages={chatMessages} onSendMessage={handleChatSend}
+                  onTakeTrade={handleChatTakeTrade} onSkip={handleChatSkip}
+                  sending={chatSending} cashBalance={portfolio?.cash_balance || 0}
+                  pendingSuggestionId={pendingSuggestionId} />
               </>
             )}
           </div>
@@ -488,62 +330,45 @@ export default function AiPage() {
       {/* ── Screenshot Tab ── */}
       {tab === 'screenshot' && (
         <div className="space-y-6">
-          <ImageDropZone onImageReady={handleImageReady} analyzing={analyzing} />
+          <ImageDropZone onImageReady={(b64, mime) => analyzeScreenshot(b64, mime, false)} analyzing={analyzing} />
 
           {screenshotError && (
             <div className="bg-loss/10 text-loss px-4 py-3 rounded-lg text-sm">{screenshotError}</div>
           )}
           {screenshotMessage && (
-            <div className={cn(
-              'px-4 py-3 rounded-lg text-sm',
-              screenshotMessage.type === 'success' ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss'
-            )}>
+            <div className={cn('px-4 py-3 rounded-lg text-sm',
+              screenshotMessage.type === 'success' ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss')}>
               {screenshotMessage.text}
             </div>
           )}
 
-          {/* Analysis Display */}
           {(screenshotText || screenshotAnalysis) && (
-            <AnalysisDisplay
-              text={screenshotText}
-              analysis={screenshotAnalysis}
-              suggestionId={screenshotSuggestionId}
-              cashBalance={portfolio?.cash_balance || 0}
-              onTakeTrade={(symbol, side, qty) => handleScreenshotTakeTrade(symbol, side, qty)}
-              onSkip={handleScreenshotSkip}
-            />
+            <AnalysisDisplay text={screenshotText} analysis={screenshotAnalysis}
+              suggestionId={screenshotSuggestionId} cashBalance={portfolio?.cash_balance || 0}
+              onTakeTrade={handleScreenshotTakeTrade} onSkip={handleScreenshotSkip} />
           )}
 
-          {/* Screenshot History */}
+          {/* History */}
           {history.length > 0 && (
             <div>
               <h3 className="text-sm font-medium text-text-secondary mb-3">Analysis History</h3>
               <div className="space-y-2">
                 {history.map((s) => (
-                  <div
-                    key={s.id}
-                    className="bg-surface-1 rounded-xl border border-surface-3 p-4 flex items-center justify-between"
-                  >
+                  <div key={s.id} className="bg-surface-1 rounded-xl border border-surface-3 p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className={cn(
-                        'w-2 h-2 rounded-full shrink-0',
-                        s.status === 'taken' ? 'bg-profit' : s.status === 'skipped' ? 'bg-text-muted' : 'bg-brand-400'
-                      )} />
+                      <div className={cn('w-2 h-2 rounded-full shrink-0',
+                        s.status === 'taken' ? 'bg-profit' : s.status === 'skipped' ? 'bg-text-muted' : 'bg-brand-400')} />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-text-primary text-sm">{s.symbol || 'UNKNOWN'}</span>
                           {s.direction && (
-                            <span className={cn(
-                              'text-xs font-medium px-1.5 py-0.5 rounded',
-                              s.direction === 'buy' ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss'
-                            )}>
+                            <span className={cn('text-xs font-medium px-1.5 py-0.5 rounded',
+                              s.direction === 'buy' ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss')}>
                               {s.direction.toUpperCase()}
                             </span>
                           )}
-                          <span className={cn(
-                            'text-xs px-1.5 py-0.5 rounded',
-                            s.status === 'taken' ? 'bg-profit/10 text-profit' : s.status === 'skipped' ? 'bg-surface-3 text-text-muted' : 'bg-brand-600/10 text-brand-400'
-                          )}>
+                          <span className={cn('text-xs px-1.5 py-0.5 rounded',
+                            s.status === 'taken' ? 'bg-profit/10 text-profit' : s.status === 'skipped' ? 'bg-surface-3 text-text-muted' : 'bg-brand-600/10 text-brand-400')}>
                             {s.status}
                           </span>
                         </div>
@@ -560,11 +385,8 @@ export default function AiPage() {
                           {formatCurrency(s.outcome_pnl)}
                         </span>
                       )}
-                      <button
-                        onClick={() => handleDeleteSuggestion(s.id)}
-                        className="p-1.5 rounded-lg hover:bg-loss/10 text-text-muted hover:text-loss transition-colors"
-                        title="Delete"
-                      >
+                      <button onClick={() => handleDeleteSuggestion(s.id)}
+                        className="p-1.5 rounded-lg hover:bg-loss/10 text-text-muted hover:text-loss transition-colors" title="Delete">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -579,7 +401,6 @@ export default function AiPage() {
       {/* ── Sentiment Tab ── */}
       {tab === 'sentiment' && <SentimentDashboard />}
 
-      {/* AI Stats */}
       <AiStatsPanel />
     </div>
   )
