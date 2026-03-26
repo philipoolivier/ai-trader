@@ -104,7 +104,7 @@ export default function AiPage() {
       const res = await fetch('/api/ai/analyze-chart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ images, mimeTypes }),
+        body: JSON.stringify({ images, mimeTypes, symbol: selectedSymbol, interval }),
       })
       const data = await res.json()
 
@@ -324,7 +324,7 @@ export default function AiPage() {
       const res = await fetch('/api/ai/analyze-chart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mimeType }),
+        body: JSON.stringify({ image: base64, mimeType, symbol: selectedSymbol, interval }),
       })
       const data = await res.json()
 

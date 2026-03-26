@@ -172,6 +172,8 @@ function TradePageContent() {
         body: JSON.stringify({
           images: snapshots.map(s => s.base64),
           mimeTypes: snapshots.map(s => s.mimeType),
+          symbol: selectedSymbol,
+          interval: interval === 'D' ? '1day' : interval === 'W' ? '1week' : interval + 'min',
         }),
       })
       const data = await res.json()

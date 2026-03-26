@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { analyzeChart } from '@/lib/claude'
 import { supabase } from '@/lib/supabase'
+import { getIndicators, formatIndicatorsForClaude } from '@/lib/twelvedata'
 
 const DEFAULT_USER_ID = 'default-user'
 const INITIAL_BALANCE = 500
@@ -9,7 +10,7 @@ export const maxDuration = 60
 
 export async function POST(request: Request) {
   try {
-    const { image, images, mimeType, mimeTypes } = await request.json()
+    const { image, images, mimeType, mimeTypes, symbol, interval } = await request.json()
 
     // Support single image or array of images
     const imageData = images || (image ? [image] : null)
@@ -23,10 +24,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Claude API key is not configured' }, { status: 500 })
     }
 
+    // Fetch live indicator data if symbol is provided
+    let indicatorContext = ''
+    if (symbol) {
+      try {
+        const tvInterval = interval || '5min'
+        const indicatorData = await getIndicators(symbol, tvInterval)
+        indicatorContext = formatIndicatorsForClaude(indicatorData)
+      } catch {
+        // Indicators are optional — don't block analysis
+      }
+    }
+
     // Analyze chart with Claude — returns full text analysis + optional structured data
     let result
     try {
-      result = await analyzeChart(imageData, mimeData)
+      result = await analyzeChart(imageData, mimeData, indicatorContext)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown Claude API error'
       return NextResponse.json({ error: `AI analysis error: ${msg}` }, { status: 500 })

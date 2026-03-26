@@ -90,7 +90,8 @@ After your FULL analysis, on a new line, append this structured data block for t
 
 export async function analyzeChart(
   imageBase64: string | string[],
-  mimeType: string | string[]
+  mimeType: string | string[],
+  indicatorContext: string = ''
 ): Promise<{ text: string; analysis: ChartAnalysisResponse | null }> {
   const prompt = getChartAnalysisPrompt()
 
@@ -110,10 +111,12 @@ export async function analyzeChart(
     })
   }
 
+  const indicatorBlock = indicatorContext ? `\n\n${indicatorContext}\n\nUse these live indicator readings to strengthen your analysis. The VWAP, ATR, ADX/DI, and Ichimoku data is real-time from the API — factor it into your key levels, trend assessment, and SL/TP placement.\n` : ''
+
   if (images.length > 1) {
-    content.push({ type: 'text', text: `These are ${images.length} different timeframe charts of the same instrument. Analyze ALL timeframes together for a multi-timeframe confluence analysis.\n\n${prompt}` })
+    content.push({ type: 'text', text: `These are ${images.length} different timeframe charts of the same instrument. Analyze ALL timeframes together for a multi-timeframe confluence analysis.${indicatorBlock}\n\n${prompt}` })
   } else {
-    content.push({ type: 'text', text: prompt })
+    content.push({ type: 'text', text: `${indicatorBlock}\n\n${prompt}` })
   }
 
   const res = await fetch(CLAUDE_API_URL, {
@@ -266,7 +269,8 @@ function parseClaudeResponse(fullText: string): { message: string; analysis: Cha
 }
 
 export async function analyzeChartData(
-  request: AnalyzeChartDataRequest
+  request: AnalyzeChartDataRequest,
+  indicatorContext: string = ''
 ): Promise<{ message: string; analysis: ChartAnalysisResponse | null }> {
   const { symbol, interval, ohlcData, indicators, pineScriptCode, conversationHistory, userMessage } = request
 
@@ -293,6 +297,11 @@ export async function analyzeChartData(
 
   if (pineScriptCode) {
     parts.push(`\nTrader's custom indicator logic:\n\`\`\`\n${pineScriptCode}\n\`\`\`\nInterpret this indicator and factor it into your analysis.`)
+  }
+
+  if (indicatorContext) {
+    parts.push(indicatorContext)
+    parts.push('\nUse these live indicator readings to strengthen your analysis. The VWAP, ATR, ADX/DI, and Ichimoku data is real-time — factor it into key levels, trend assessment, and SL/TP placement.')
   }
 
   messages.push({ role: 'user', content: parts.join('\n') })

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { analyzeChartData } from '@/lib/claude'
 import { supabase } from '@/lib/supabase'
+import { getIndicators, formatIndicatorsForClaude } from '@/lib/twelvedata'
 import type { AnalyzeChartDataRequest } from '@/types'
 
 const DEFAULT_USER_ID = 'default-user'
@@ -23,7 +24,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Claude API key is not configured' }, { status: 500 })
     }
 
-    const result = await analyzeChartData(body)
+    // Fetch live indicator data
+    let indicatorContext = ''
+    try {
+      const tvInterval = body.interval === 'D' ? '1day' : body.interval === 'W' ? '1week' : (body.interval || '5') + 'min'
+      const indicatorData = await getIndicators(body.symbol, tvInterval)
+      indicatorContext = formatIndicatorsForClaude(indicatorData)
+    } catch { /* indicators are optional */ }
+
+    const result = await analyzeChartData(body, indicatorContext)
 
     // Save suggestion if there's a trade recommendation
     let suggestionId: string | null = null
