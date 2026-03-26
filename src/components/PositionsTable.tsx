@@ -41,7 +41,8 @@ export default function PositionsTable({ positions, loading, onSymbolClick }: Po
           <thead>
             <tr className="border-b border-surface-3">
               <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Symbol</th>
-              <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Shares</th>
+              <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Side</th>
+              <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Lots</th>
               <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Avg Price</th>
               <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Current</th>
               <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Mkt Value</th>
@@ -62,7 +63,12 @@ export default function PositionsTable({ positions, loading, onSymbolClick }: Po
                     <span className="font-medium text-text-primary text-sm">{pos.symbol}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-right text-sm text-text-primary">{pos.quantity}</td>
+                <td className="px-4 py-3 text-right text-sm">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${pos.side === 'long' ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss'}`}>
+                    {pos.side?.toUpperCase() || 'LONG'}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right text-sm text-text-primary">{(pos.quantity / 100_000).toFixed(2)}</td>
                 <td className="px-4 py-3 text-right text-sm text-text-secondary">{formatCurrency(pos.avg_price)}</td>
                 <td className="px-4 py-3 text-right text-sm text-text-primary">{formatCurrency(pos.current_price)}</td>
                 <td className="px-4 py-3 text-right text-sm text-text-primary">{formatCurrency(pos.market_value)}</td>

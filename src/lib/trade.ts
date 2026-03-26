@@ -1,14 +1,21 @@
 import { supabase } from '@/lib/supabase'
 import { getPrice } from '@/lib/twelvedata'
+import { LOT_UNIT } from '@/lib/trading-config'
 
 const DEFAULT_USER_ID = 'default-user'
+
+// Server-side defaults (client sends leverage + lotSize with each trade)
+const DEFAULT_LEVERAGE = 1000
 
 interface TradeParams {
   symbol: string
   side: 'buy' | 'sell'
-  quantity: number
+  lotSize?: number     // e.g. 0.01, 0.1, 1.0
+  leverage?: number    // e.g. 1000
   notes?: string
   aiSuggestionId?: string
+  // Legacy support
+  quantity?: number
 }
 
 interface TradeResult {
@@ -17,15 +24,23 @@ interface TradeResult {
 }
 
 export async function executeTrade(params: TradeParams): Promise<TradeResult> {
-  const { symbol, side, quantity, notes, aiSuggestionId } = params
+  const { symbol, side, notes, aiSuggestionId } = params
+  const leverage = params.leverage || DEFAULT_LEVERAGE
 
-  if (!symbol || !side || !quantity || quantity <= 0) {
+  // Support both lot-based and legacy quantity-based trades
+  const lotSize = params.lotSize || (params.quantity ? params.quantity / LOT_UNIT : 0)
+  const units = lotSize * LOT_UNIT
+
+  if (!symbol || !side || lotSize <= 0) {
     throw new Error('Invalid trade parameters')
   }
 
   // Get current price
   const price = await getPrice(symbol)
-  const total = price * quantity
+
+  // Margin required = (lots * 100,000 * price) / leverage
+  const notional = lotSize * LOT_UNIT * price
+  const marginRequired = notional / leverage
 
   // Get portfolio
   const { data: portfolio } = await supabase
@@ -36,13 +51,6 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
 
   if (!portfolio) {
     throw new Error('Portfolio not found')
-  }
-
-  // Check margin/funds
-  if (portfolio.cash_balance < total) {
-    throw new Error(
-      `Insufficient funds. Need $${total.toFixed(2)} but only have $${portfolio.cash_balance.toFixed(2)}`
-    )
   }
 
   // Get existing position
@@ -59,101 +67,107 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
   const hasPosition = existingPosition && existingPosition.quantity > 0
 
   if (hasPosition) {
-    const positionSide = existingPosition.side // 'long' or 'short'
+    const positionSide = existingPosition.side
     const isClosing =
       (positionSide === 'long' && side === 'sell') ||
       (positionSide === 'short' && side === 'buy')
 
     if (isClosing) {
       // Closing (fully or partially) an existing position
-      const closeQty = Math.min(quantity, existingPosition.quantity)
-      const remainingQty = existingPosition.quantity - closeQty
+      const closeUnits = Math.min(units, existingPosition.quantity)
+      const closeLots = closeUnits / LOT_UNIT
+      const remainingUnits = existingPosition.quantity - closeUnits
 
       // Calculate P&L
       if (positionSide === 'long') {
-        pnl = (price - existingPosition.avg_price) * closeQty
+        pnl = (price - existingPosition.avg_price) * closeUnits
       } else {
-        pnl = (existingPosition.avg_price - price) * closeQty
+        pnl = (existingPosition.avg_price - price) * closeUnits
       }
 
       // Return margin + P&L to cash
-      const marginReturned = existingPosition.avg_price * closeQty
+      const marginReturned = (closeUnits * existingPosition.avg_price) / leverage
       await supabase
         .from('portfolios')
         .update({ cash_balance: portfolio.cash_balance + marginReturned + pnl })
         .eq('id', portfolio.id)
 
-      if (remainingQty > 0) {
-        await supabase
-          .from('positions')
-          .update({ quantity: remainingQty, updated_at: new Date().toISOString() })
-          .eq('id', existingPosition.id)
-      } else {
-        await supabase
-          .from('positions')
-          .update({ quantity: 0, updated_at: new Date().toISOString() })
-          .eq('id', existingPosition.id)
-      }
+      await supabase
+        .from('positions')
+        .update({ quantity: remainingUnits, updated_at: new Date().toISOString() })
+        .eq('id', existingPosition.id)
 
       const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(2)}` : `-$${Math.abs(pnl).toFixed(2)}`
-      message = `Closed ${closeQty} units of ${symbol.toUpperCase()} ${positionSide} at $${price.toFixed(2)} (P&L: ${pnlStr})`
+      message = `Closed ${closeLots} lots of ${symbol.toUpperCase()} ${positionSide} at $${price.toFixed(2)} (P&L: ${pnlStr})`
 
-      // If there's leftover quantity beyond the existing position, open opposite direction
-      if (quantity > existingPosition.quantity) {
-        const flipQty = quantity - existingPosition.quantity
-        const flipTotal = price * flipQty
+      // If leftover, flip position
+      if (units > existingPosition.quantity) {
+        const flipUnits = units - existingPosition.quantity
+        const flipLots = flipUnits / LOT_UNIT
+        const flipMargin = (flipUnits * price) / leverage
         const flipSide = side === 'buy' ? 'long' : 'short'
 
         await supabase
           .from('portfolios')
-          .update({ cash_balance: portfolio.cash_balance + marginReturned + pnl - flipTotal })
+          .update({ cash_balance: portfolio.cash_balance + marginReturned + pnl - flipMargin })
           .eq('id', portfolio.id)
 
         await supabase
           .from('positions')
           .update({
-            quantity: flipQty,
+            quantity: flipUnits,
             avg_price: price,
             side: flipSide,
             updated_at: new Date().toISOString(),
           })
           .eq('id', existingPosition.id)
 
-        message += ` | Opened ${flipQty} units ${flipSide} at $${price.toFixed(2)}`
+        message += ` | Opened ${flipLots} lots ${flipSide} at $${price.toFixed(2)}`
       }
     } else {
       // Adding to existing position (same direction)
+      if (portfolio.cash_balance < marginRequired) {
+        throw new Error(
+          `Insufficient margin. Need $${marginRequired.toFixed(2)} but only have $${portfolio.cash_balance.toFixed(2)}`
+        )
+      }
+
       await supabase
         .from('portfolios')
-        .update({ cash_balance: portfolio.cash_balance - total })
+        .update({ cash_balance: portfolio.cash_balance - marginRequired })
         .eq('id', portfolio.id)
 
-      const newQty = existingPosition.quantity + quantity
+      const newUnits = existingPosition.quantity + units
       const newAvg =
-        (existingPosition.avg_price * existingPosition.quantity + price * quantity) / newQty
+        (existingPosition.avg_price * existingPosition.quantity + price * units) / newUnits
 
       await supabase
         .from('positions')
-        .update({ quantity: newQty, avg_price: newAvg, updated_at: new Date().toISOString() })
+        .update({ quantity: newUnits, avg_price: newAvg, updated_at: new Date().toISOString() })
         .eq('id', existingPosition.id)
 
-      message = `Added ${quantity} units to ${existingPosition.side} ${symbol.toUpperCase()} at $${price.toFixed(2)} (avg: $${newAvg.toFixed(2)})`
+      message = `Added ${lotSize} lots to ${existingPosition.side} ${symbol.toUpperCase()} at $${price.toFixed(2)} (avg: $${newAvg.toFixed(2)})`
     }
   } else {
     // No existing position — open new long or short
+    if (portfolio.cash_balance < marginRequired) {
+      throw new Error(
+        `Insufficient margin. Need $${marginRequired.toFixed(2)} but only have $${portfolio.cash_balance.toFixed(2)}`
+      )
+    }
+
     const positionSide = side === 'buy' ? 'long' : 'short'
 
     await supabase
       .from('portfolios')
-      .update({ cash_balance: portfolio.cash_balance - total })
+      .update({ cash_balance: portfolio.cash_balance - marginRequired })
       .eq('id', portfolio.id)
 
     if (existingPosition) {
-      // Row exists but quantity is 0, reuse it
       await supabase
         .from('positions')
         .update({
-          quantity,
+          quantity: units,
           avg_price: price,
           side: positionSide,
           updated_at: new Date().toISOString(),
@@ -163,13 +177,13 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
       await supabase.from('positions').insert({
         portfolio_id: portfolio.id,
         symbol: symbol.toUpperCase(),
-        quantity,
+        quantity: units,
         avg_price: price,
         side: positionSide,
       })
     }
 
-    message = `Opened ${positionSide} ${quantity} units of ${symbol.toUpperCase()} at $${price.toFixed(2)}`
+    message = `Opened ${positionSide} ${lotSize} lots of ${symbol.toUpperCase()} at $${price.toFixed(2)} (margin: $${marginRequired.toFixed(2)})`
   }
 
   // Record trade
@@ -177,9 +191,9 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
     portfolio_id: portfolio.id,
     symbol: symbol.toUpperCase(),
     side,
-    quantity,
+    quantity: units,
     price,
-    total,
+    total: notional,
     pnl,
     notes: notes || null,
     status: 'filled',

@@ -43,14 +43,18 @@ export default function PortfolioPage() {
                 const quote = await quoteRes.json()
                 const currentPrice = quote.price || pos.avg_price
                 const marketValue = currentPrice * pos.quantity
-                const costBasis = pos.avg_price * pos.quantity
+                const unrealizedPnl = pos.side === 'short'
+                  ? (pos.avg_price - currentPrice) * pos.quantity
+                  : (currentPrice - pos.avg_price) * pos.quantity
+                const unrealizedPnlPercent = pos.side === 'short'
+                  ? ((pos.avg_price - currentPrice) / pos.avg_price) * 100
+                  : ((currentPrice - pos.avg_price) / pos.avg_price) * 100
                 return {
                   ...pos,
                   current_price: currentPrice,
                   market_value: marketValue,
-                  unrealized_pnl: marketValue - costBasis,
-                  unrealized_pnl_percent:
-                    ((currentPrice - pos.avg_price) / pos.avg_price) * 100,
+                  unrealized_pnl: unrealizedPnl,
+                  unrealized_pnl_percent: unrealizedPnlPercent,
                   name: quote.name,
                 }
               } catch {
@@ -78,6 +82,8 @@ export default function PortfolioPage() {
 
   useEffect(() => {
     fetchData()
+    const interval = setInterval(fetchData, 30000)
+    return () => clearInterval(interval)
   }, [fetchData])
 
   const handleReset = async () => {
@@ -100,7 +106,7 @@ export default function PortfolioPage() {
   const totalPnl = totalValue - initialBalance
   const totalPnlPercent = (totalPnl / initialBalance) * 100
 
-  const closedTrades = (data?.trades || []).filter((t) => t.side === 'sell' && t.pnl !== null)
+  const closedTrades = (data?.trades || []).filter((t) => t.pnl !== null)
   const winningTrades = closedTrades.filter((t) => (t.pnl || 0) > 0)
   const losingTrades = closedTrades.filter((t) => (t.pnl || 0) < 0)
   const winRate = closedTrades.length > 0 ? (winningTrades.length / closedTrades.length) * 100 : 0

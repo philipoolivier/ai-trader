@@ -44,12 +44,19 @@ export default function DashboardPage() {
                 const currentPrice = quote.price || pos.avg_price
                 const marketValue = currentPrice * pos.quantity
                 const costBasis = pos.avg_price * pos.quantity
+                // Short positions profit when price drops
+                const unrealizedPnl = pos.side === 'short'
+                  ? (pos.avg_price - currentPrice) * pos.quantity
+                  : (currentPrice - pos.avg_price) * pos.quantity
+                const unrealizedPnlPercent = pos.side === 'short'
+                  ? ((pos.avg_price - currentPrice) / pos.avg_price) * 100
+                  : ((currentPrice - pos.avg_price) / pos.avg_price) * 100
                 return {
                   ...pos,
                   current_price: currentPrice,
                   market_value: marketValue,
-                  unrealized_pnl: marketValue - costBasis,
-                  unrealized_pnl_percent: ((currentPrice - pos.avg_price) / pos.avg_price) * 100,
+                  unrealized_pnl: unrealizedPnl,
+                  unrealized_pnl_percent: unrealizedPnlPercent,
                   name: quote.name,
                 }
               } catch {
@@ -75,6 +82,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchPortfolio()
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchPortfolio, 30000)
+    return () => clearInterval(interval)
   }, [fetchPortfolio])
 
   const positionsValue = positionsWithQuotes.reduce((sum, p) => sum + p.market_value, 0)
@@ -83,7 +93,7 @@ export default function DashboardPage() {
   const totalPnlPercent = (totalPnl / (data?.portfolio?.initial_balance || 500)) * 100
   const unrealizedPnl = positionsWithQuotes.reduce((sum, p) => sum + p.unrealized_pnl, 0)
 
-  const closedTrades = (data?.trades || []).filter((t) => t.side === 'sell' && t.pnl !== null)
+  const closedTrades = (data?.trades || []).filter((t) => t.pnl !== null)
   const winningTrades = closedTrades.filter((t) => (t.pnl || 0) > 0)
   const winRate = closedTrades.length > 0 ? (winningTrades.length / closedTrades.length) * 100 : 0
 
