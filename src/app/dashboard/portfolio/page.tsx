@@ -131,12 +131,15 @@ export default function PortfolioPage() {
     setConfig(updated)
   }
 
-  // MT4-style: Balance = cash (realized), Equity = balance + floating P&L
+  // Balance = initial + all realized P&L, Equity = balance + floating P&L
   const floatingPnl = positionsWithQuotes.reduce((sum, p) => sum + p.unrealized_pnl, 0)
-  const balance = data?.portfolio?.cash_balance || 0
-  const equity = balance + floatingPnl
   const initialBalance = data?.portfolio?.initial_balance || 500
-  const totalPnl = balance - initialBalance
+  const realizedPnl = (data?.trades || [])
+    .filter(t => t.pnl !== null)
+    .reduce((sum, t) => sum + (t.pnl || 0), 0)
+  const balance = initialBalance + realizedPnl
+  const equity = balance + floatingPnl
+  const totalPnl = equity - initialBalance
   const totalPnlPercent = initialBalance > 0 ? (totalPnl / initialBalance) * 100 : 0
 
   const closedTrades = (data?.trades || []).filter((t) => t.pnl !== null)

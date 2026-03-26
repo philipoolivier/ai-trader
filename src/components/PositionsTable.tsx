@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { formatCurrency, formatPercent, getPnlColor, cn } from '@/lib/utils'
 import { getLotUnit } from '@/lib/trading-config'
+import MiniPriceLadder from '@/components/MiniPriceLadder'
 import type { PositionWithQuote } from '@/types'
 import { TrendingUp, TrendingDown, X } from 'lucide-react'
 
@@ -16,6 +17,7 @@ interface PositionsTableProps {
 export default function PositionsTable({ positions, loading, onSymbolClick, onPositionClosed }: PositionsTableProps) {
   const [closingId, setClosingId] = useState<string | null>(null)
   const [closeMessage, setCloseMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const handleClose = async (e: React.MouseEvent, positionId: string, symbol: string) => {
     e.stopPropagation()
@@ -89,10 +91,10 @@ export default function PositionsTable({ positions, loading, onSymbolClick, onPo
             </thead>
             <tbody>
               {positions.map((pos) => (
+                <React.Fragment key={pos.id}>
                 <tr
-                  key={pos.id}
                   className="border-b border-surface-3/50 hover:bg-surface-2/50 transition-colors cursor-pointer"
-                  onClick={() => onSymbolClick?.(pos.symbol)}
+                  onClick={() => setExpandedId(expandedId === pos.id ? null : pos.id)}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -159,6 +161,32 @@ export default function PositionsTable({ positions, loading, onSymbolClick, onPo
                     </button>
                   </td>
                 </tr>
+                {expandedId === pos.id && (pos.stop_loss || pos.take_profit) && (
+                  <tr className="bg-surface-2/30">
+                    <td colSpan={9} className="px-4 py-3">
+                      <div className="flex items-start gap-4">
+                        <MiniPriceLadder
+                          currentPrice={pos.current_price}
+                          entryPrice={pos.avg_price}
+                          stopLoss={pos.stop_loss}
+                          takeProfit={pos.take_profit}
+                          side={pos.side || 'long'}
+                          width={220}
+                          height={90}
+                        />
+                        <div className="text-xs space-y-1 text-text-muted">
+                          <div>Entry: <span className="text-brand-400 font-medium">{formatCurrency(pos.avg_price)}</span></div>
+                          {pos.stop_loss && <div>SL: <span className="text-loss font-medium">{formatCurrency(pos.stop_loss)}</span> ({((Math.abs(pos.current_price - pos.stop_loss) / pos.current_price) * 100).toFixed(2)}% away)</div>}
+                          {pos.take_profit && <div>TP: <span className="text-profit font-medium">{formatCurrency(pos.take_profit)}</span> ({((Math.abs(pos.take_profit - pos.current_price) / pos.current_price) * 100).toFixed(2)}% away)</div>}
+                          {pos.stop_loss && pos.take_profit && (
+                            <div>R:R: <span className="text-text-primary font-medium">1:{Math.abs((pos.take_profit - pos.avg_price) / (pos.avg_price - pos.stop_loss)).toFixed(1)}</span></div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
