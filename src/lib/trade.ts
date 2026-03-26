@@ -12,6 +12,8 @@ interface TradeParams {
   side: 'buy' | 'sell'
   lotSize: number      // e.g. 0.01, 0.1, 1.0
   leverage?: number    // e.g. 1000
+  stopLoss?: number | null
+  takeProfit?: number | null
   notes?: string
   aiSuggestionId?: string
 }
@@ -192,6 +194,8 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
     price,
     total: notional,
     pnl,
+    stop_loss: params.stopLoss || null,
+    take_profit: params.takeProfit || null,
     notes: notes || null,
     status: 'filled',
   }

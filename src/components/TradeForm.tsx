@@ -40,6 +40,8 @@ export default function TradeForm({
     maxOpenPositions: 10,
     maxLotSize: 10,
   })
+  const [stopLoss, setStopLoss] = useState('')
+  const [takeProfit, setTakeProfit] = useState('')
   const [stopLossPips, setStopLossPips] = useState('')
 
   useEffect(() => {
@@ -69,6 +71,8 @@ export default function TradeForm({
           side,
           lotSize: lots,
           leverage: config.leverage,
+          stopLoss: parseFloat(stopLoss) || null,
+          takeProfit: parseFloat(takeProfit) || null,
           notes,
         }),
       })
@@ -286,6 +290,32 @@ export default function TradeForm({
             </div>
             <div className="text-xs text-text-muted">
               {config.riskPerTradePercent}% risk = {formatCurrency(cashBalance * config.riskPerTradePercent / 100)} max loss
+            </div>
+          </div>
+
+          {/* Stop Loss & Take Profit */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-text-muted block mb-1">Stop Loss</label>
+              <input
+                type="number"
+                step="any"
+                value={stopLoss}
+                onChange={(e) => setStopLoss(e.target.value)}
+                className="w-full px-3 py-2 bg-surface-2 border border-surface-4 rounded-lg text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-loss/50"
+                placeholder="Price"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-text-muted block mb-1">Take Profit</label>
+              <input
+                type="number"
+                step="any"
+                value={takeProfit}
+                onChange={(e) => setTakeProfit(e.target.value)}
+                className="w-full px-3 py-2 bg-surface-2 border border-surface-4 rounded-lg text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-profit/50"
+                placeholder="Price"
+              />
             </div>
           </div>
 

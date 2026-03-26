@@ -27,6 +27,8 @@ export interface Trade {
   price: number
   total: number
   pnl: number | null
+  stop_loss: number | null
+  take_profit: number | null
   notes: string | null
   ai_suggestion_id: string | null
   status: 'filled' | 'cancelled'

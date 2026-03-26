@@ -36,7 +36,8 @@ export default function TradeHistory({ trades, loading }: TradeHistoryProps) {
             <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Side</th>
             <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Lots</th>
             <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Price</th>
-            <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Total</th>
+            <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">SL</th>
+            <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">TP</th>
             <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">P&L</th>
             <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Notes</th>
           </tr>
@@ -60,7 +61,12 @@ export default function TradeHistory({ trades, loading }: TradeHistoryProps) {
               </td>
               <td className="px-4 py-3 text-right text-sm text-text-primary">{(trade.quantity / 100_000).toFixed(2)}</td>
               <td className="px-4 py-3 text-right text-sm text-text-secondary">{formatCurrency(trade.price)}</td>
-              <td className="px-4 py-3 text-right text-sm text-text-primary">{formatCurrency(trade.total)}</td>
+              <td className="px-4 py-3 text-right text-sm text-loss">
+                {trade.stop_loss ? formatCurrency(trade.stop_loss) : '—'}
+              </td>
+              <td className="px-4 py-3 text-right text-sm text-profit">
+                {trade.take_profit ? formatCurrency(trade.take_profit) : '—'}
+              </td>
               <td className={`px-4 py-3 text-right text-sm font-medium ${trade.pnl !== null ? getPnlColor(trade.pnl) : 'text-text-muted'}`}>
                 {trade.pnl !== null ? formatCurrency(trade.pnl) : '—'}
               </td>

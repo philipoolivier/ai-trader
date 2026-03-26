@@ -82,6 +82,10 @@ CREATE TABLE IF NOT EXISTS ai_suggestions (
 -- Add ai_suggestion_id to trades table
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS ai_suggestion_id UUID REFERENCES ai_suggestions(id);
 
+-- Add stop_loss and take_profit to trades table
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS stop_loss DECIMAL(15, 4);
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS take_profit DECIMAL(15, 4);
+
 -- News sentiment cache table
 CREATE TABLE IF NOT EXISTS news_sentiment_cache (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
