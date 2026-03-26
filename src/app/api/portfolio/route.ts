@@ -82,7 +82,9 @@ export async function DELETE(request: Request) {
       await supabase.from('portfolio_snapshots').delete().eq('portfolio_id', portfolio.id)
 
       if (deleteHistory) {
-        // Full reset — delete everything
+        // Clear circular FKs first, then delete
+        await supabase.from('ai_suggestions').update({ trade_id: null }).eq('portfolio_id', portfolio.id)
+        await supabase.from('trades').update({ ai_suggestion_id: null }).eq('portfolio_id', portfolio.id)
         await supabase.from('ai_suggestions').delete().eq('portfolio_id', portfolio.id)
         await supabase.from('trades').delete().eq('portfolio_id', portfolio.id)
       }
