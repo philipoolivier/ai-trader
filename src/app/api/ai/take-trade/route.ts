@@ -5,7 +5,7 @@ import { getPrice } from '@/lib/twelvedata'
 
 export async function POST(request: Request) {
   try {
-    const { suggestionId, symbol, side, lotSize, stopLoss, takeProfit, label } = await request.json()
+    const { suggestionId, symbol, side, lotSize, entryPrice, stopLoss, takeProfit, label } = await request.json()
     const lots = lotSize || 0.01
 
     if (!symbol || !side) {
@@ -23,9 +23,9 @@ export async function POST(request: Request) {
       suggestion = data
     }
 
-    // Check if entry price differs — create pending order
+    // Check if entry price differs from current — create pending order
     const currentPrice = await getPrice(symbol)
-    const aiEntry = suggestion?.entry_price ? parseFloat(suggestion.entry_price) : null
+    const aiEntry = entryPrice || (suggestion?.entry_price ? parseFloat(suggestion.entry_price) : null)
     const priceDiff = aiEntry ? Math.abs(aiEntry - currentPrice) / currentPrice : 0
 
     if (aiEntry && priceDiff > 0.001) {
@@ -65,7 +65,8 @@ export async function POST(request: Request) {
           message: `${orderType.replace('_', ' ').toUpperCase()}: ${lots} lots ${symbol.toUpperCase()} at $${aiEntry.toFixed(2)}`,
           orderType,
         })
-      } catch {
+      } catch (pendingErr) {
+        console.error('Pending order creation failed, falling through to market order:', pendingErr)
         // Fall through to market order
       }
     }

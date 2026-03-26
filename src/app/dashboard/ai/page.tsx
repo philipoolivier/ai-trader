@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Brain, BarChart2, Image as ImageIcon, Trash2 } from 'lucide-react'
+import PendingOrdersPanel from '@/components/PendingOrdersPanel'
 import { cn, formatCurrency } from '@/lib/utils'
 import { format } from 'date-fns'
 import StockSearch from '@/components/StockSearch'
@@ -300,6 +301,7 @@ export default function AiPage() {
           symbol: analysis.symbol || selectedSymbol,
           side: analysis.direction,
           lotSize: 0.01,
+          entryPrice: analysis.entry_price || null,
           stopLoss: analysis.stop_loss || null,
           takeProfit: analysis.take_profit || null,
           label: tradeLabel,
@@ -542,6 +544,9 @@ export default function AiPage() {
                   cashBalance={portfolio?.cash_balance || 0}
                   pendingSuggestionId={pendingSuggestionId}
                 />
+
+                {/* Pending Orders */}
+                <PendingOrdersPanel onOrderTriggered={fetchPortfolio} />
               </>
             )}
           </div>
