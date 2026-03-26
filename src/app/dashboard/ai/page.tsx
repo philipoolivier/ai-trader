@@ -267,7 +267,10 @@ export default function AiPage() {
           suggestionId,
           symbol: analysis.symbol || selectedSymbol,
           side: analysis.direction,
-          quantity: 1,
+          lotSize: 0.01,
+          stopLoss: analysis.stop_loss || null,
+          takeProfit: analysis.take_profit || null,
+          entryPrice: analysis.entry_price || null,
         }),
       })
       const data = await res.json()
@@ -275,6 +278,8 @@ export default function AiPage() {
         setScreenshotMessage({ type: 'success', text: data.message })
         fetchPortfolio()
         fetchHistory()
+      } else {
+        setScreenshotMessage({ type: 'error', text: data.error })
       }
     } catch { /* ignore */ }
   }
@@ -425,20 +430,6 @@ export default function AiPage() {
                   <span className="font-bold text-text-primary text-lg">{selectedSymbol}</span>
                   {selectedName && <span className="text-text-secondary">{selectedName}</span>}
                 </div>
-
-                <IndicatorPanel
-                  indicators={indicators}
-                  onIndicatorsChange={setIndicators}
-                  pineScript={pineScript}
-                  onPineScriptChange={setPineScript}
-                  tvStudies={tvStudies}
-                  onTvStudiesChange={setTvStudies}
-                />
-
-                <IndicatorLibrary
-                  activeIndicators={activeCustomIndicators}
-                  onActiveChange={setActiveCustomIndicators}
-                />
 
                 <AiChart
                   symbol={selectedSymbol}

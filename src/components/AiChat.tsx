@@ -134,7 +134,7 @@ function InlineTradeCard({
   cashBalance: number
 }) {
   const [acted, setActed] = useState(false)
-  const [quantity, setQuantity] = useState('1')
+  const [quantity, setQuantity] = useState('0.01')
   const isBuy = analysis.direction === 'buy'
 
   return (
@@ -173,11 +173,12 @@ function InlineTradeCard({
         <div className="flex items-center gap-2">
           <input
             type="number"
-            min="1"
+            min="0.01"
+            step="0.01"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             className="w-16 px-2 py-1 text-xs bg-surface-2 border border-surface-4 rounded text-text-primary focus:outline-none focus:ring-1 focus:ring-brand-600"
-            placeholder="Qty"
+            placeholder="Lots"
           />
           <span className="text-[10px] text-text-muted">Cash: {formatCurrency(cashBalance)}</span>
           <div className="flex-1" />

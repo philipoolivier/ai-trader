@@ -86,6 +86,23 @@ ALTER TABLE trades ADD COLUMN IF NOT EXISTS ai_suggestion_id UUID REFERENCES ai_
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS stop_loss DECIMAL(15, 4);
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS take_profit DECIMAL(15, 4);
 
+-- Pending orders (stop/limit orders)
+CREATE TABLE IF NOT EXISTS pending_orders (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  symbol TEXT NOT NULL,
+  side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+  lot_size DECIMAL(10, 2) NOT NULL DEFAULT 0.01,
+  entry_price DECIMAL(15, 4) NOT NULL,
+  stop_loss DECIMAL(15, 4),
+  take_profit DECIMAL(15, 4),
+  order_type TEXT NOT NULL CHECK (order_type IN ('buy_stop', 'buy_limit', 'sell_stop', 'sell_limit')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'triggered', 'cancelled')),
+  ai_suggestion_id UUID REFERENCES ai_suggestions(id),
+  triggered_trade_id UUID REFERENCES trades(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- News sentiment cache table
 CREATE TABLE IF NOT EXISTS news_sentiment_cache (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

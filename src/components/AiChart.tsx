@@ -225,7 +225,7 @@ export default function AiChart({
         {capturing ? (
           <><Loader2 size={16} className="animate-spin" /> Capturing...</>
         ) : (
-          <><Camera size={16} /> Add {tfLabel} Screenshot to List</>
+          <><Camera size={16} /> Add Screenshot to List</>
         )}
       </button>
 

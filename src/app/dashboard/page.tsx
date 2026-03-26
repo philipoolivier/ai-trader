@@ -82,8 +82,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchPortfolio()
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchPortfolio, 30000)
+    // Auto-refresh every 30 seconds + check pending orders
+    const interval = setInterval(() => {
+      fetchPortfolio()
+      fetch('/api/orders', { method: 'POST' }).catch(() => {})
+    }, 30000)
+    // Check orders on load too
+    fetch('/api/orders', { method: 'POST' }).catch(() => {})
     return () => clearInterval(interval)
   }, [fetchPortfolio])
 
