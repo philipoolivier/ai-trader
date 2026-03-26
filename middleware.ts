@@ -15,9 +15,18 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check for auth cookie
+  // Check for auth cookie — must exist and not be empty
   const authToken = request.cookies.get('auth-token')?.value
-  if (!authToken || authToken !== process.env.AUTH_SECRET) {
+
+  if (!authToken) {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('from', pathname)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  // If AUTH_SECRET is set, validate against it
+  const secret = process.env.AUTH_SECRET
+  if (secret && authToken !== secret) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('from', pathname)
     return NextResponse.redirect(loginUrl)
