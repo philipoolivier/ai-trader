@@ -93,10 +93,10 @@ export default function DashboardPage() {
     fetch('/api/orders', { method: 'POST' }).catch(() => {})
     // Price/P&L refresh every 5 seconds
     const priceInterval = setInterval(fetchPortfolio, 5000)
-    // Pending order check every 15 seconds
+    // Pending order check every 5 seconds
     const orderInterval = setInterval(() => {
       fetch('/api/orders', { method: 'POST' }).catch(() => {})
-    }, 15000)
+    }, 5000)
     return () => { clearInterval(priceInterval); clearInterval(orderInterval) }
   }, [fetchPortfolio])
 

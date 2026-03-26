@@ -55,7 +55,7 @@ export default function PendingOrdersPanel({ onOrderTriggered }: PendingOrdersPa
         }
       } catch { /* ignore */ }
       fetchOrders()
-    }, 30000)
+    }, 5000)
     return () => clearInterval(interval)
   }, [fetchOrders, onOrderTriggered])
 
