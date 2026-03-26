@@ -80,7 +80,14 @@ export default function PendingOrdersPanel({ onOrderTriggered }: PendingOrdersPa
     )
   }
 
-  if (orders.length === 0) return null
+  if (orders.length === 0) {
+    return (
+      <div className="bg-surface-1 rounded-xl border border-surface-3 p-6 text-center">
+        <p className="text-text-secondary text-sm">No pending orders</p>
+        <p className="text-text-muted text-xs mt-1">Stop and limit orders will appear here</p>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden">

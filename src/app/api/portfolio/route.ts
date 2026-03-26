@@ -69,6 +69,7 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const deleteHistory = searchParams.get('deleteHistory') === 'true'
+    const customBalance = parseFloat(searchParams.get('balance') || '') || INITIAL_BALANCE
 
     const { data: portfolio } = await supabase
       .from('portfolios')
@@ -91,7 +92,7 @@ export async function DELETE(request: Request) {
 
       await supabase
         .from('portfolios')
-        .update({ cash_balance: INITIAL_BALANCE, initial_balance: INITIAL_BALANCE })
+        .update({ cash_balance: customBalance, initial_balance: customBalance })
         .eq('id', portfolio.id)
     }
 

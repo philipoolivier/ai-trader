@@ -2,13 +2,19 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { DollarSign, TrendingUp, Target, Percent, RotateCcw } from 'lucide-react'
+import { DollarSign, TrendingUp, Target, Percent, RotateCcw, Settings2 } from 'lucide-react'
 import PendingOrdersPanel from '@/components/PendingOrdersPanel'
 import StatCard from '@/components/StatCard'
 import PositionsTable from '@/components/PositionsTable'
 import PortfolioChart from '@/components/PortfolioChart'
 import TradeHistory from '@/components/TradeHistory'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
+import {
+  getTradingConfig,
+  saveTradingConfig,
+  LOT_PRESETS,
+  type TradingConfig,
+} from '@/lib/trading-config'
 import type { Portfolio, Position, Trade, PositionWithQuote, PortfolioSnapshot } from '@/types'
 
 interface PortfolioData {
@@ -23,7 +29,16 @@ export default function PortfolioPage() {
   const [positionsWithQuotes, setPositionsWithQuotes] = useState<PositionWithQuote[]>([])
   const [loading, setLoading] = useState(true)
   const [resetting, setResetting] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [config, setConfig] = useState<TradingConfig>({
+    leverage: 1000, defaultLotSize: 0.01, riskPerTradePercent: 2, maxOpenPositions: 10, maxLotSize: 10,
+  })
+  const [newBalance, setNewBalance] = useState('')
   const router = useRouter()
+
+  useEffect(() => {
+    setConfig(getTradingConfig())
+  }, [])
 
   const fetchData = useCallback(async () => {
     try {
@@ -94,13 +109,14 @@ export default function PortfolioPage() {
   }, [fetchData])
 
   const handleReset = async (deleteHistory: boolean = false) => {
+    const balance = parseFloat(newBalance) || 500
     const msg = deleteHistory
-      ? 'Reset portfolio to $500 AND delete all trade history? This cannot be undone.'
-      : 'Reset portfolio to $500? Open positions will be closed but trade history will be kept.'
+      ? `Reset portfolio to $${balance} AND delete all trade history?`
+      : `Reset portfolio to $${balance}? Open positions will be closed but trade history kept.`
     if (!confirm(msg)) return
     setResetting(true)
     try {
-      await fetch(`/api/portfolio?deleteHistory=${deleteHistory}`, { method: 'DELETE' })
+      await fetch(`/api/portfolio?deleteHistory=${deleteHistory}&balance=${balance}`, { method: 'DELETE' })
       setPositionsWithQuotes([])
       await fetchData()
     } catch {
@@ -110,11 +126,21 @@ export default function PortfolioPage() {
     }
   }
 
-  const positionsValue = positionsWithQuotes.reduce((sum, p) => sum + p.market_value, 0)
-  const totalValue = (data?.portfolio?.cash_balance || 0) + positionsValue
-  const initialBalance = data?.portfolio?.initial_balance || 100000
+  const handleConfigChange = (key: keyof TradingConfig, value: number) => {
+    const updated = saveTradingConfig({ [key]: value })
+    setConfig(updated)
+  }
+
+  // Portfolio value = cash + unrealized P&L (not full notional)
+  const unrealizedPnl = positionsWithQuotes.reduce((sum, p) => sum + p.unrealized_pnl, 0)
+  const cashBalance = data?.portfolio?.cash_balance || 0
+  const initialBalance = data?.portfolio?.initial_balance || 500
+  const totalValue = cashBalance + unrealizedPnl
+  const realizedPnl = (data?.trades || [])
+    .filter(t => t.pnl !== null)
+    .reduce((sum, t) => sum + (t.pnl || 0), 0)
   const totalPnl = totalValue - initialBalance
-  const totalPnlPercent = (totalPnl / initialBalance) * 100
+  const totalPnlPercent = initialBalance > 0 ? (totalPnl / initialBalance) * 100 : 0
 
   const closedTrades = (data?.trades || []).filter((t) => t.pnl !== null)
   const winningTrades = closedTrades.filter((t) => (t.pnl || 0) > 0)
@@ -134,16 +160,22 @@ export default function PortfolioPage() {
     date: new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     value: s.total_value,
   }))
-
   if (totalValue > 0) {
     chartData.push({ date: 'Now', value: totalValue })
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-text-primary">Portfolio</h1>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:text-text-primary bg-surface-1 border border-surface-3 rounded-lg transition-colors"
+          >
+            <Settings2 size={14} />
+            Settings
+          </button>
           <button
             onClick={() => handleReset(false)}
             disabled={resetting}
@@ -158,15 +190,83 @@ export default function PortfolioPage() {
             className="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:text-loss bg-surface-1 border border-surface-3 rounded-lg hover:border-loss/30 transition-colors disabled:opacity-50"
           >
             <RotateCcw size={14} className={resetting ? 'animate-spin' : ''} />
-            Reset All + History
+            Reset All
           </button>
         </div>
       </div>
 
+      {/* Settings Panel */}
+      {showSettings && (
+        <div className="bg-surface-1 rounded-xl border border-surface-3 p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-text-primary">Trading Settings</h3>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div>
+              <label className="text-xs text-text-muted block mb-1">Starting Balance ($)</label>
+              <input
+                type="number"
+                value={newBalance}
+                onChange={(e) => setNewBalance(e.target.value)}
+                placeholder={String(initialBalance)}
+                className="w-full px-3 py-2 bg-surface-2 border border-surface-4 rounded-lg text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+              />
+              <span className="text-[10px] text-text-muted">Used on next reset</span>
+            </div>
+            <div>
+              <label className="text-xs text-text-muted block mb-1">Leverage</label>
+              <select
+                value={config.leverage}
+                onChange={(e) => handleConfigChange('leverage', parseInt(e.target.value))}
+                className="w-full px-3 py-2 bg-surface-2 border border-surface-4 rounded-lg text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+              >
+                {[50, 100, 200, 500, 1000].map((l) => (
+                  <option key={l} value={l}>{l}:1</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-text-muted block mb-1">Default Lot Size</label>
+              <select
+                value={config.defaultLotSize}
+                onChange={(e) => handleConfigChange('defaultLotSize', parseFloat(e.target.value))}
+                className="w-full px-3 py-2 bg-surface-2 border border-surface-4 rounded-lg text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+              >
+                {LOT_PRESETS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-text-muted block mb-1">Risk per Trade</label>
+              <select
+                value={config.riskPerTradePercent}
+                onChange={(e) => handleConfigChange('riskPerTradePercent', parseFloat(e.target.value))}
+                className="w-full px-3 py-2 bg-surface-2 border border-surface-4 rounded-lg text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+              >
+                {[0.5, 1, 2, 3, 5, 10].map((r) => (
+                  <option key={r} value={r}>{r}%</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-text-muted block mb-1">Max Lot Size</label>
+              <select
+                value={config.maxLotSize}
+                onChange={(e) => handleConfigChange('maxLotSize', parseFloat(e.target.value))}
+                className="w-full px-3 py-2 bg-surface-2 border border-surface-4 rounded-lg text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+              >
+                {[1, 5, 10, 50, 100].map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Total Value"
+          title="Account Value"
           value={totalValue}
           change={totalPnl}
           changePercent={totalPnlPercent}
@@ -174,29 +274,37 @@ export default function PortfolioPage() {
           format="currency"
         />
         <StatCard
-          title="Cash Available"
-          value={data?.portfolio?.cash_balance || 0}
+          title="Cash (Free Margin)"
+          value={cashBalance}
           icon={<DollarSign size={18} />}
           format="currency"
         />
         <StatCard
-          title="Win Rate"
-          value={winRate}
-          icon={<Target size={18} />}
-          format="percent"
+          title="Unrealized P&L"
+          value={unrealizedPnl}
+          icon={<TrendingUp size={18} />}
+          format="currency"
         />
         <StatCard
-          title="Profit Factor"
-          value={profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)}
-          icon={<Percent size={18} />}
+          title="Realized P&L"
+          value={realizedPnl}
+          icon={<DollarSign size={18} />}
+          format="currency"
         />
       </div>
 
       {/* Performance Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
-          <span className="text-xs text-text-muted block mb-1">Closed Trades</span>
-          <span className="text-lg font-bold text-text-primary">{closedTrades.length}</span>
+          <span className="text-xs text-text-muted block mb-1">Win Rate</span>
+          <span className={cn('text-lg font-bold', winRate >= 50 ? 'text-profit' : 'text-loss')}>{winRate.toFixed(1)}%</span>
+          <span className="text-[10px] text-text-muted block">{closedTrades.length} trades</span>
+        </div>
+        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
+          <span className="text-xs text-text-muted block mb-1">Profit Factor</span>
+          <span className={cn('text-lg font-bold', profitFactor >= 1 ? 'text-profit' : 'text-loss')}>
+            {profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)}
+          </span>
         </div>
         <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
           <span className="text-xs text-text-muted block mb-1">Avg Win</span>
@@ -206,12 +314,6 @@ export default function PortfolioPage() {
           <span className="text-xs text-text-muted block mb-1">Avg Loss</span>
           <span className="text-lg font-bold text-loss">{formatCurrency(avgLoss)}</span>
         </div>
-        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
-          <span className="text-xs text-text-muted block mb-1">Realized P&L</span>
-          <span className={`text-lg font-bold ${totalWins - totalLosses >= 0 ? 'text-profit' : 'text-loss'}`}>
-            {formatCurrency(totalWins - totalLosses)}
-          </span>
-        </div>
       </div>
 
       {/* Chart */}
@@ -220,7 +322,7 @@ export default function PortfolioPage() {
         <PortfolioChart data={chartData} />
       </div>
 
-      {/* Positions */}
+      {/* Open Positions */}
       <div>
         <h2 className="text-lg font-semibold text-text-primary mb-3">Open Positions</h2>
         <PositionsTable
@@ -231,8 +333,11 @@ export default function PortfolioPage() {
         />
       </div>
 
-      {/* Pending Orders */}
-      <PendingOrdersPanel onOrderTriggered={fetchData} />
+      {/* Pending Orders - always show section */}
+      <div>
+        <h2 className="text-lg font-semibold text-text-primary mb-3">Pending Orders</h2>
+        <PendingOrdersPanel onOrderTriggered={fetchData} />
+      </div>
 
       {/* Trade History */}
       <div className="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden">
