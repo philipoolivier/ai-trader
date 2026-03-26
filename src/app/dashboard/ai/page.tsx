@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Brain, BarChart2, Image as ImageIcon, Trash2 } from 'lucide-react'
 import PendingOrdersPanel from '@/components/PendingOrdersPanel'
+import { getTradingConfig, saveTradingConfig, LOT_PRESETS } from '@/lib/trading-config'
 import { cn, formatCurrency } from '@/lib/utils'
 import { format } from 'date-fns'
 import StockSearch from '@/components/StockSearch'
@@ -46,6 +47,7 @@ export default function AiPage() {
   const [savedSessions, setSavedSessions] = useState<{ id: string; symbol: string; date: string; messages: ChatMessage[] }[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [chatSending, setChatSending] = useState(false)
+  const [tradeLotSize, setTradeLotSize] = useState(0.01)
   const [currentOhlc, setCurrentOhlc] = useState<OHLC[]>([])
   const [currentIndicatorValues, setCurrentIndicatorValues] = useState<IndicatorValues[]>([])
   const [pendingSuggestionId, setPendingSuggestionId] = useState<string | null>(null)
@@ -77,6 +79,9 @@ export default function AiPage() {
   useEffect(() => {
     fetchPortfolio()
     fetchHistory()
+    // Load trading config
+    const cfg = getTradingConfig()
+    setTradeLotSize(cfg.defaultLotSize)
     // Load saved sessions from localStorage
     try {
       const saved = localStorage.getItem('ai-analysis-sessions')
@@ -300,7 +305,7 @@ export default function AiPage() {
           suggestionId,
           symbol: analysis.symbol || selectedSymbol,
           side: analysis.direction,
-          lotSize: 0.01,
+          lotSize: tradeLotSize,
           entryPrice: analysis.entry_price || null,
           stopLoss: analysis.stop_loss || null,
           takeProfit: analysis.take_profit || null,
@@ -426,7 +431,8 @@ export default function AiPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-text-primary">AI Analysis</h1>
 
-      {/* Tabs */}
+      {/* Tabs + Trade Settings */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
       <div className="flex gap-1 bg-surface-1 rounded-lg p-1 w-fit border border-surface-3">
         {([
           { key: 'live', label: 'Live Chart', icon: Brain },
@@ -445,6 +451,31 @@ export default function AiPage() {
             {label}
           </button>
         ))}
+      </div>
+
+      {/* Lot Size Selector */}
+      <div className="flex items-center gap-2 bg-surface-1 rounded-lg px-3 py-1.5 border border-surface-3">
+        <span className="text-xs text-text-muted">Lot Size:</span>
+        <div className="flex gap-1">
+          {LOT_PRESETS.map((p) => (
+            <button
+              key={p.value}
+              onClick={() => {
+                setTradeLotSize(p.value)
+                saveTradingConfig({ defaultLotSize: p.value })
+              }}
+              className={cn(
+                'px-2 py-1 text-xs font-medium rounded transition-colors',
+                tradeLotSize === p.value
+                  ? 'bg-brand-600 text-white'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-2'
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
       </div>
 
       {/* ── Live Chart Tab ── */}
