@@ -6,7 +6,7 @@ import type { AnalyzeChartDataRequest } from '@/types'
 const DEFAULT_USER_ID = 'default-user'
 const INITIAL_BALANCE = 500
 
-export const maxDuration = 30
+export const maxDuration = 60
 
 export async function POST(request: Request) {
   try {

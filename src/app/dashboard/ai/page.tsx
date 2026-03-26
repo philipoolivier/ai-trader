@@ -137,10 +137,11 @@ export default function AiPage() {
         }
         setChatMessages((prev) => [...prev, errMsg])
       }
-    } catch {
+    } catch (err) {
+      const errText = err instanceof Error ? err.message : 'Unknown error'
       setChatMessages((prev) => [...prev, {
         id: `err-${Date.now()}`, role: 'assistant',
-        content: 'Failed to connect to AI. Please try again.',
+        content: `Failed to connect to AI: ${errText}. Please try again.`,
         timestamp: new Date().toISOString(),
       }])
     } finally {
@@ -193,10 +194,11 @@ export default function AiPage() {
           timestamp: new Date().toISOString(),
         }])
       }
-    } catch {
+    } catch (err) {
+      const errText = err instanceof Error ? err.message : 'Unknown error'
       setChatMessages((prev) => [...prev, {
         id: `err-${Date.now()}`, role: 'assistant',
-        content: 'Failed to connect. Please try again.',
+        content: `Failed to connect: ${errText}. Please try again.`,
         timestamp: new Date().toISOString(),
       }])
     } finally {
