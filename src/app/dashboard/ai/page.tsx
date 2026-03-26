@@ -47,6 +47,8 @@ export default function AiPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [chatSending, setChatSending] = useState(false)
   const [tradeLotSize, setTradeLotSize] = useState(0.01)
+  const [riskMode, setRiskMode] = useState<'fixed' | 'percent'>('fixed')
+  const [riskPercent, setRiskPercent] = useState(2)
   const [currentOhlc, setCurrentOhlc] = useState<OHLC[]>([])
   const [currentIndicatorValues, setCurrentIndicatorValues] = useState<IndicatorValues[]>([])
   const [pendingSuggestionId, setPendingSuggestionId] = useState<string | null>(null)
@@ -81,6 +83,7 @@ export default function AiPage() {
     // Load trading config
     const cfg = getTradingConfig()
     setTradeLotSize(cfg.defaultLotSize)
+    setRiskPercent(cfg.riskPerTradePercent)
     // Load saved sessions from localStorage
     try {
       const saved = localStorage.getItem('ai-analysis-sessions')
@@ -296,6 +299,22 @@ export default function AiPage() {
 
   const handleChatTakeTrade = async (analysis: ChartAnalysisResponse, suggestionId: string) => {
     const tradeLabel = (analysis as unknown as Record<string, unknown>).label as string || undefined
+
+    // Calculate lot size based on mode
+    let lots = tradeLotSize
+    if (riskMode === 'percent' && analysis.stop_loss && analysis.entry_price) {
+      const accountBalance = portfolio?.cash_balance || 500
+      const riskAmount = accountBalance * (riskPercent / 100)
+      const slDistance = Math.abs(analysis.entry_price - analysis.stop_loss)
+      if (slDistance > 0) {
+        // Determine contract size based on symbol
+        const sym = (analysis.symbol || selectedSymbol).toUpperCase().replace('/', '')
+        const contractSize = sym.startsWith('XAU') ? 100 : sym.startsWith('XAG') ? 5000 : 100000
+        lots = Math.round((riskAmount / (slDistance * contractSize)) * 100) / 100
+        lots = Math.max(lots, 0.01) // Minimum 0.01
+      }
+    }
+
     try {
       const res = await fetch('/api/ai/take-trade', {
         method: 'POST',
@@ -304,7 +323,7 @@ export default function AiPage() {
           suggestionId,
           symbol: analysis.symbol || selectedSymbol,
           side: analysis.direction,
-          lotSize: tradeLotSize,
+          lotSize: lots,
           entryPrice: analysis.entry_price || null,
           stopLoss: analysis.stop_loss || null,
           takeProfit: analysis.take_profit || null,
@@ -452,28 +471,72 @@ export default function AiPage() {
         ))}
       </div>
 
-      {/* Lot Size Selector */}
-      <div className="flex items-center gap-2 bg-surface-1 rounded-lg px-3 py-1.5 border border-surface-3">
-        <span className="text-xs text-text-muted">Lot Size:</span>
-        <div className="flex gap-1">
-          {LOT_PRESETS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => {
-                setTradeLotSize(p.value)
-                saveTradingConfig({ defaultLotSize: p.value })
-              }}
-              className={cn(
-                'px-2 py-1 text-xs font-medium rounded transition-colors',
-                tradeLotSize === p.value
-                  ? 'bg-brand-600 text-white'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-2'
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
+      {/* Risk / Lot Size Selector */}
+      <div className="flex items-center gap-3 bg-surface-1 rounded-lg px-3 py-1.5 border border-surface-3">
+        {/* Toggle */}
+        <div className="flex gap-0.5 bg-surface-2 rounded p-0.5">
+          <button
+            onClick={() => setRiskMode('fixed')}
+            className={cn('px-2 py-1 text-[10px] font-medium rounded transition-colors',
+              riskMode === 'fixed' ? 'bg-brand-600 text-white' : 'text-text-muted'
+            )}
+          >Fixed Lot</button>
+          <button
+            onClick={() => setRiskMode('percent')}
+            className={cn('px-2 py-1 text-[10px] font-medium rounded transition-colors',
+              riskMode === 'percent' ? 'bg-brand-600 text-white' : 'text-text-muted'
+            )}
+          >% Risk</button>
         </div>
+
+        {riskMode === 'fixed' ? (
+          <>
+            <span className="text-xs text-text-muted">Lots:</span>
+            <div className="flex gap-1">
+              {LOT_PRESETS.map((p) => (
+                <button
+                  key={p.value}
+                  onClick={() => {
+                    setTradeLotSize(p.value)
+                    saveTradingConfig({ defaultLotSize: p.value })
+                  }}
+                  className={cn(
+                    'px-2 py-1 text-xs font-medium rounded transition-colors',
+                    tradeLotSize === p.value
+                      ? 'bg-brand-600 text-white'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-2'
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="text-xs text-text-muted">Risk:</span>
+            <div className="flex gap-1">
+              {[0.5, 1, 2, 3, 5].map((pct) => (
+                <button
+                  key={pct}
+                  onClick={() => {
+                    setRiskPercent(pct)
+                    saveTradingConfig({ riskPerTradePercent: pct })
+                  }}
+                  className={cn(
+                    'px-2 py-1 text-xs font-medium rounded transition-colors',
+                    riskPercent === pct
+                      ? 'bg-brand-600 text-white'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-2'
+                  )}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+            <span className="text-[10px] text-text-muted">of ${(portfolio?.cash_balance || 500).toFixed(0)}</span>
+          </>
+        )}
       </div>
       </div>
 
