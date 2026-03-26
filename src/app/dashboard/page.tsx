@@ -174,6 +174,7 @@ export default function DashboardPage() {
           positions={positionsWithQuotes}
           loading={false}
           onSymbolClick={(symbol) => router.push(`/dashboard/trade?symbol=${symbol}`)}
+          onPositionClosed={fetchPortfolio}
         />
       </div>
 

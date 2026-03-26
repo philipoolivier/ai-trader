@@ -207,6 +207,7 @@ export default function PortfolioPage() {
           positions={positionsWithQuotes}
           loading={loading}
           onSymbolClick={(symbol) => router.push(`/dashboard/trade?symbol=${symbol}`)}
+          onPositionClosed={fetchData}
         />
       </div>
 

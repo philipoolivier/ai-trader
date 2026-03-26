@@ -74,6 +74,7 @@ export async function DELETE() {
       .single()
 
     if (portfolio) {
+      await supabase.from('ai_suggestions').delete().eq('portfolio_id', portfolio.id)
       await supabase.from('trades').delete().eq('portfolio_id', portfolio.id)
       await supabase.from('positions').delete().eq('portfolio_id', portfolio.id)
       await supabase.from('portfolio_snapshots').delete().eq('portfolio_id', portfolio.id)
