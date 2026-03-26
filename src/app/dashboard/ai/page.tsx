@@ -15,7 +15,6 @@ import IndicatorLibrary from '@/components/IndicatorLibrary'
 import ImageDropZone from '@/components/ImageDropZone'
 import ChartAnalysisCard from '@/components/ChartAnalysisCard'
 import SentimentDashboard from '@/components/SentimentDashboard'
-import AiStatsPanel from '@/components/AiStatsPanel'
 import AnalysisDisplay from '@/components/AnalysisDisplay'
 import type {
   ChartAnalysisResponse,
@@ -679,7 +678,6 @@ export default function AiPage() {
       {tab === 'sentiment' && <SentimentDashboard />}
 
       {/* AI Stats */}
-      <AiStatsPanel />
     </div>
   )
 }

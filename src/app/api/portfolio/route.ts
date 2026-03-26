@@ -78,26 +78,42 @@ export async function DELETE(request: Request) {
       .single()
 
     if (portfolio) {
+      // Delete pending orders first (references ai_suggestions)
+      const r1 = await supabase.from('pending_orders').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+      if (r1.error) console.error('pending_orders delete:', r1.error)
+
       // Always close positions and reset balance
-      await supabase.from('positions').delete().eq('portfolio_id', portfolio.id)
-      await supabase.from('portfolio_snapshots').delete().eq('portfolio_id', portfolio.id)
+      const r2 = await supabase.from('positions').delete().eq('portfolio_id', portfolio.id)
+      if (r2.error) console.error('positions delete:', r2.error)
+
+      const r3 = await supabase.from('portfolio_snapshots').delete().eq('portfolio_id', portfolio.id)
+      if (r3.error) console.error('snapshots delete:', r3.error)
 
       if (deleteHistory) {
         // Clear circular FKs first, then delete
-        await supabase.from('ai_suggestions').update({ trade_id: null }).eq('portfolio_id', portfolio.id)
-        await supabase.from('trades').update({ ai_suggestion_id: null }).eq('portfolio_id', portfolio.id)
-        await supabase.from('ai_suggestions').delete().eq('portfolio_id', portfolio.id)
-        await supabase.from('trades').delete().eq('portfolio_id', portfolio.id)
+        const r4 = await supabase.from('ai_suggestions').update({ trade_id: null }).eq('portfolio_id', portfolio.id)
+        if (r4.error) console.error('ai_suggestions nullify:', r4.error)
+
+        const r5 = await supabase.from('trades').update({ ai_suggestion_id: null }).eq('portfolio_id', portfolio.id)
+        if (r5.error) console.error('trades nullify:', r5.error)
+
+        const r6 = await supabase.from('ai_suggestions').delete().eq('portfolio_id', portfolio.id)
+        if (r6.error) console.error('ai_suggestions delete:', r6.error)
+
+        const r7 = await supabase.from('trades').delete().eq('portfolio_id', portfolio.id)
+        if (r7.error) console.error('trades delete:', r7.error)
       }
 
-      await supabase
+      const r8 = await supabase
         .from('portfolios')
         .update({ cash_balance: customBalance, initial_balance: customBalance })
         .eq('id', portfolio.id)
+      if (r8.error) console.error('portfolio update:', r8.error)
     }
 
     return NextResponse.json({ success: true })
   } catch (error: unknown) {
+    console.error('Reset portfolio error:', error)
     const message = error instanceof Error ? error.message : 'Failed to reset portfolio'
     return NextResponse.json({ error: message }, { status: 500 })
   }
