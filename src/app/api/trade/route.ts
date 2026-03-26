@@ -3,9 +3,9 @@ import { executeTrade } from '@/lib/trade'
 
 export async function POST(request: Request) {
   try {
-    const { symbol, side, quantity, lotSize, leverage, notes, aiSuggestionId } = await request.json()
+    const { symbol, side, lotSize, leverage, notes, aiSuggestionId } = await request.json()
 
-    const result = await executeTrade({ symbol, side, lotSize: lotSize || undefined, leverage, quantity, notes, aiSuggestionId })
+    const result = await executeTrade({ symbol, side, lotSize: lotSize || 0.01, leverage, notes, aiSuggestionId })
 
     return NextResponse.json(result)
   } catch (error: unknown) {

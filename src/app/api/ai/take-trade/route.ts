@@ -4,9 +4,10 @@ import { executeTrade } from '@/lib/trade'
 
 export async function POST(request: Request) {
   try {
-    const { suggestionId, symbol, side, quantity } = await request.json()
+    const { suggestionId, symbol, side, lotSize, quantity } = await request.json()
+    const lots = lotSize || 0.01 // Default to 0.01 lots for AI trades
 
-    if (!suggestionId || !symbol || !side || !quantity) {
+    if (!suggestionId || !symbol || !side) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     const result = await executeTrade({
       symbol,
       side,
-      quantity,
+      lotSize: lots,
       notes: `AI suggestion (confidence: ${suggestion.confidence}/10) - ${suggestion.reasoning?.slice(0, 100)}`,
       aiSuggestionId: suggestionId,
     })

@@ -34,7 +34,7 @@ export default function TradeHistory({ trades, loading }: TradeHistoryProps) {
             <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Date</th>
             <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Symbol</th>
             <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Side</th>
-            <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Qty</th>
+            <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Lots</th>
             <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Price</th>
             <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Total</th>
             <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">P&L</th>
@@ -58,7 +58,7 @@ export default function TradeHistory({ trades, loading }: TradeHistoryProps) {
                   {trade.side.toUpperCase()}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right text-sm text-text-primary">{trade.quantity}</td>
+              <td className="px-4 py-3 text-right text-sm text-text-primary">{(trade.quantity / 100_000).toFixed(2)}</td>
               <td className="px-4 py-3 text-right text-sm text-text-secondary">{formatCurrency(trade.price)}</td>
               <td className="px-4 py-3 text-right text-sm text-text-primary">{formatCurrency(trade.total)}</td>
               <td className={`px-4 py-3 text-right text-sm font-medium ${trade.pnl !== null ? getPnlColor(trade.pnl) : 'text-text-muted'}`}>

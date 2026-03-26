@@ -10,12 +10,10 @@ const DEFAULT_LEVERAGE = 1000
 interface TradeParams {
   symbol: string
   side: 'buy' | 'sell'
-  lotSize?: number     // e.g. 0.01, 0.1, 1.0
+  lotSize: number      // e.g. 0.01, 0.1, 1.0
   leverage?: number    // e.g. 1000
   notes?: string
   aiSuggestionId?: string
-  // Legacy support
-  quantity?: number
 }
 
 interface TradeResult {
@@ -27,9 +25,8 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
   const { symbol, side, notes, aiSuggestionId } = params
   const leverage = params.leverage || DEFAULT_LEVERAGE
 
-  // Support both lot-based and legacy quantity-based trades
-  const lotSize = params.lotSize || (params.quantity ? params.quantity / LOT_UNIT : 0)
-  const units = lotSize * LOT_UNIT
+  const lotSize = Math.max(params.lotSize, 0.01) // Minimum 0.01 lots
+  const units = Math.round(lotSize * LOT_UNIT)
 
   if (!symbol || !side || lotSize <= 0) {
     throw new Error('Invalid trade parameters')
