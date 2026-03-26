@@ -86,6 +86,15 @@ ALTER TABLE trades ADD COLUMN IF NOT EXISTS ai_suggestion_id UUID REFERENCES ai_
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS stop_loss DECIMAL(15, 4);
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS take_profit DECIMAL(15, 4);
 
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Pending orders (stop/limit orders)
 CREATE TABLE IF NOT EXISTS pending_orders (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
