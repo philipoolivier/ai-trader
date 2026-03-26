@@ -47,10 +47,6 @@ export default function AiPage() {
   const [currentIndicatorValues, setCurrentIndicatorValues] = useState<IndicatorValues[]>([])
   const [pendingSuggestionId, setPendingSuggestionId] = useState<string | null>(null)
 
-  // Live chart screenshot state
-  const [liveScreenshotAnalyzing, setLiveScreenshotAnalyzing] = useState(false)
-  const [liveScreenshotError, setLiveScreenshotError] = useState('')
-
   // Screenshot tab state
   const [analyzing, setAnalyzing] = useState(false)
   const [screenshotText, setScreenshotText] = useState('')
@@ -241,56 +237,6 @@ export default function AiPage() {
     } catch { /* ignore */ }
   }
 
-  // ── Live chart screenshot handler (sends image to Claude, result goes to chat) ──
-
-  const handleLiveChartScreenshot = async (base64: string, mimeType: string) => {
-    setLiveScreenshotAnalyzing(true)
-    setLiveScreenshotError('')
-    setChatSending(true)
-
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: `Analyze this ${selectedSymbol} chart screenshot (${interval} timeframe) with all visible indicators.`,
-      timestamp: new Date().toISOString(),
-    }
-    setChatMessages((prev) => [...prev, userMsg])
-
-    try {
-      const res = await fetch('/api/ai/analyze-chart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mimeType }),
-      })
-      const data = await res.json()
-
-      if (res.ok && (data.text || data.analysis)) {
-        if (data.suggestionId) setPendingSuggestionId(data.suggestionId)
-        const assistantMsg: ChatMessage = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: data.text || data.analysis?.reasoning || 'Analysis complete.',
-          analysis: data.analysis || null,
-          timestamp: new Date().toISOString(),
-        }
-        setChatMessages((prev) => [...prev, assistantMsg])
-        fetchHistory()
-      } else {
-        setLiveScreenshotError(data.error || 'Analysis failed')
-        setChatMessages((prev) => [...prev, {
-          id: `err-${Date.now()}`, role: 'assistant',
-          content: `Error: ${data.error || 'Analysis failed'}`,
-          timestamp: new Date().toISOString(),
-        }])
-      }
-    } catch {
-      setLiveScreenshotError('Failed to analyze screenshot')
-    } finally {
-      setLiveScreenshotAnalyzing(false)
-      setChatSending(false)
-    }
-  }
-
   // ── Screenshot tab handlers ──
 
   const handleImageReady = async (base64: string, mimeType: string) => {
@@ -450,25 +396,6 @@ export default function AiPage() {
                   analyzing={chatSending}
                   tvStudies={tvStudies}
                 />
-
-                {/* Screenshot & Analyze section */}
-                <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <ImageIcon size={16} className="text-brand-400" />
-                    <span className="text-sm font-medium text-text-primary">Screenshot & Analyze</span>
-                  </div>
-                  <p className="text-xs text-text-muted mb-3">
-                    Take a screenshot of the chart above (with your indicators loaded) and paste it here with <span className="text-brand-400 font-medium">Ctrl+V</span>. Claude will analyze exactly what you see — including your custom indicators.
-                  </p>
-                  <ImageDropZone
-                    onImageReady={handleLiveChartScreenshot}
-                    analyzing={liveScreenshotAnalyzing}
-                  />
-                </div>
-
-                {liveScreenshotError && (
-                  <div className="bg-loss/10 text-loss px-4 py-3 rounded-lg text-sm">{liveScreenshotError}</div>
-                )}
 
                 <AiChat
                   messages={chatMessages}
