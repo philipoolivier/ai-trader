@@ -17,6 +17,14 @@ export default function PortfolioChart({ data, initialBalance = 500 }: Portfolio
     )
   }
 
+  const values = data.map(d => d.value)
+  const minVal = Math.min(...values)
+  const maxVal = Math.max(...values)
+  const range = maxVal - minVal
+  const padding = Math.max(range * 0.2, 5) // At least $5 padding
+  const yMin = Math.floor(minVal - padding)
+  const yMax = Math.ceil(maxVal + padding)
+
   const startValue = data[0]?.value || initialBalance
   const endValue = data[data.length - 1]?.value || initialBalance
   const isPositive = endValue >= startValue
@@ -24,7 +32,7 @@ export default function PortfolioChart({ data, initialBalance = 500 }: Portfolio
   return (
     <div className="h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+        <AreaChart data={data} margin={{ top: 10, right: 10, bottom: 5, left: 10 }}>
           <defs>
             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
               <stop
@@ -51,7 +59,7 @@ export default function PortfolioChart({ data, initialBalance = 500 }: Portfolio
             tickLine={false}
             axisLine={{ stroke: '#232330' }}
             tickFormatter={(v) => `$${v.toFixed(0)}`}
-            domain={['auto', 'auto']}
+            domain={[yMin, yMax]}
           />
           <Tooltip
             contentStyle={{
@@ -61,14 +69,13 @@ export default function PortfolioChart({ data, initialBalance = 500 }: Portfolio
               color: '#f0f0f5',
               fontSize: '13px',
             }}
-            formatter={(value: number) => [formatCurrency(value), 'Equity']}
+            formatter={(value: number) => [formatCurrency(value), 'Balance']}
             labelStyle={{ color: '#9494a8' }}
           />
           <ReferenceLine
             y={initialBalance}
             stroke="#5e5e72"
             strokeDasharray="3 3"
-            label={{ value: 'Start', fill: '#5e5e72', fontSize: 10, position: 'right' }}
           />
           <Area
             type="monotone"
@@ -76,6 +83,7 @@ export default function PortfolioChart({ data, initialBalance = 500 }: Portfolio
             stroke={isPositive ? '#22c55e' : '#ef4444'}
             strokeWidth={2}
             fill="url(#colorValue)"
+            dot={{ r: 3, fill: isPositive ? '#22c55e' : '#ef4444' }}
           />
         </AreaChart>
       </ResponsiveContainer>

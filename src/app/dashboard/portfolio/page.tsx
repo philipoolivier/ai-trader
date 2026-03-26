@@ -172,10 +172,8 @@ export default function PortfolioPage() {
       value: runningBalance,
     })
   }
-  // Add current equity (with floating P&L) as final point
-  if (floatingPnl !== 0) {
-    equityCurve.push({ date: 'Now', value: equity })
-  }
+  // Always add current balance as final point
+  equityCurve.push({ date: 'Now', value: balance })
 
   return (
     <div className="space-y-6">

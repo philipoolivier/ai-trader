@@ -139,19 +139,6 @@ export default function PendingOrdersPanel({ onOrderTriggered }: PendingOrdersPa
               {/* Expanded details */}
               {isExpanded && (
                 <div className="px-4 pb-3 space-y-3">
-                  {/* Mini price ladder */}
-                  {(order.stop_loss || order.take_profit) && (
-                    <MiniPriceLadder
-                      currentPrice={order.entry_price}
-                      entryPrice={order.entry_price}
-                      stopLoss={order.stop_loss}
-                      takeProfit={order.take_profit}
-                      side={order.side}
-                      width={280}
-                      height={90}
-                    />
-                  )}
-
                   <div className="bg-surface-2 rounded-lg p-3 space-y-2">
                     <div className="text-xs text-text-muted">{typeInfo.description}</div>
 
