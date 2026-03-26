@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState, useCallback, Suspense } from 'react'
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import StockSearch from '@/components/StockSearch'
 import TradingViewChart from '@/components/TradingViewChart'
 import TradeForm from '@/components/TradeForm'
+import ChartScreenshotButton from '@/components/ChartScreenshotButton'
 import { formatCurrency, formatPercent, formatCompactNumber, getPnlColor, cn } from '@/lib/utils'
-import type { Quote, Position, Portfolio } from '@/types'
+import type { Quote, Position, Portfolio, ChartAnalysisResponse } from '@/types'
 
 function TradePageContent() {
   const searchParams = useSearchParams()
@@ -18,6 +19,8 @@ function TradePageContent() {
   const [quoteLoading, setQuoteLoading] = useState(false)
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
   const [positions, setPositions] = useState<Position[]>([])
+  const chartContainerRef = useRef<HTMLDivElement>(null)
+  const [aiAnalysis, setAiAnalysis] = useState<ChartAnalysisResponse | null>(null)
 
   const fetchQuote = useCallback(async (symbol: string) => {
     if (!symbol) return
@@ -123,8 +126,15 @@ function TradePageContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart */}
-        <div className="lg:col-span-2 bg-surface-1 rounded-xl border border-surface-3 p-5">
-          <TradingViewChart symbol={selectedSymbol} interval="D" height={450} />
+        <div className="lg:col-span-2 space-y-3">
+          <div ref={chartContainerRef} className="bg-surface-1 rounded-xl border border-surface-3 p-5">
+            <TradingViewChart symbol={selectedSymbol} interval="D" height={450} />
+          </div>
+          <ChartScreenshotButton
+            chartRef={chartContainerRef}
+            symbol={selectedSymbol}
+            onAnalysisComplete={(analysis) => setAiAnalysis(analysis)}
+          />
         </div>
 
         {/* Trade Form */}
@@ -135,6 +145,9 @@ function TradePageContent() {
             cashBalance={portfolio?.cash_balance || 0}
             currentShares={currentPosition?.quantity || 0}
             onTradeComplete={handleTradeComplete}
+            aiSuggestedSl={aiAnalysis?.stop_loss}
+            aiSuggestedTp={aiAnalysis?.take_profit}
+            aiSuggestedSide={aiAnalysis?.direction}
           />
 
           {/* Current Position Info */}

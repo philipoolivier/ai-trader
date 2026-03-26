@@ -18,6 +18,9 @@ interface TradeFormProps {
   cashBalance: number
   currentShares: number
   onTradeComplete: () => void
+  aiSuggestedSl?: number | null
+  aiSuggestedTp?: number | null
+  aiSuggestedSide?: 'buy' | 'sell' | null
 }
 
 export default function TradeForm({
@@ -26,6 +29,9 @@ export default function TradeForm({
   cashBalance,
   currentShares,
   onTradeComplete,
+  aiSuggestedSl,
+  aiSuggestedTp,
+  aiSuggestedSide,
 }: TradeFormProps) {
   const [side, setSide] = useState<'buy' | 'sell'>('buy')
   const [lotSize, setLotSize] = useState('')
@@ -47,6 +53,13 @@ export default function TradeForm({
   useEffect(() => {
     setConfig(getTradingConfig())
   }, [])
+
+  // Auto-fill from AI analysis
+  useEffect(() => {
+    if (aiSuggestedSl) setStopLoss(String(aiSuggestedSl))
+    if (aiSuggestedTp) setTakeProfit(String(aiSuggestedTp))
+    if (aiSuggestedSide) setSide(aiSuggestedSide)
+  }, [aiSuggestedSl, aiSuggestedTp, aiSuggestedSide])
 
   const lots = parseFloat(lotSize) || 0
   const margin = calculateMargin(lots, currentPrice, config.leverage)
