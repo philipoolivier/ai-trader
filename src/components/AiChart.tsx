@@ -53,8 +53,23 @@ export default function AiChart({
   const [ohlcData, setOhlcData] = useState<OHLC[]>([])
   const [fetchingData, setFetchingData] = useState(false)
   const [snapshots, setSnapshots] = useState<ChartSnapshot[]>([])
+  const [allSnapshots, setAllSnapshots] = useState<Record<string, ChartSnapshot[]>>({})
   const [capturing, setCapturing] = useState(false)
   const chartContainerRef = useRef<HTMLDivElement>(null)
+  const prevSymbolRef = useRef(symbol)
+
+  // When symbol changes, save current snapshots and load previous ones
+  useEffect(() => {
+    if (prevSymbolRef.current !== symbol) {
+      // Save current symbol's snapshots
+      if (prevSymbolRef.current && snapshots.length > 0) {
+        setAllSnapshots(prev => ({ ...prev, [prevSymbolRef.current]: snapshots }))
+      }
+      // Load new symbol's snapshots (or empty)
+      setSnapshots(allSnapshots[symbol] || [])
+      prevSymbolRef.current = symbol
+    }
+  }, [symbol, snapshots, allSnapshots])
 
   const memoizedStudies = useMemo(() => tvStudies, [JSON.stringify(tvStudies)])
 
