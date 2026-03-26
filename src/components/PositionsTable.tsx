@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { formatCurrency, formatPercent, getPnlColor, cn } from '@/lib/utils'
+import { getLotUnit } from '@/lib/trading-config'
 import type { PositionWithQuote } from '@/types'
 import { TrendingUp, TrendingDown, X } from 'lucide-react'
 
@@ -102,7 +103,7 @@ export default function PositionsTable({ positions, loading, onSymbolClick, onPo
                       {pos.side?.toUpperCase() || 'LONG'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-sm text-text-primary">{(pos.quantity / 100_000).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right text-sm text-text-primary">{(pos.quantity / getLotUnit(pos.symbol)).toFixed(2)}</td>
                   <td className="px-4 py-3 text-right text-sm text-text-secondary">{formatCurrency(pos.avg_price)}</td>
                   <td className="px-4 py-3 text-right text-sm text-text-primary">{formatCurrency(pos.current_price)}</td>
                   <td className={`px-4 py-3 text-right text-sm font-medium ${getPnlColor(pos.unrealized_pnl)}`}>

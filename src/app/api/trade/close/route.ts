@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getPrice } from '@/lib/twelvedata'
-import { LOT_UNIT } from '@/lib/trading-config'
+import { getLotUnit } from '@/lib/trading-config'
 
 const DEFAULT_USER_ID = 'default-user'
 const DEFAULT_LEVERAGE = 1000
@@ -62,7 +62,8 @@ export async function POST(request: Request) {
 
     // Record closing trade
     const closeSide = position.side === 'long' ? 'sell' : 'buy'
-    const lots = position.quantity / LOT_UNIT
+    const lotUnit = getLotUnit(position.symbol)
+    const lots = position.quantity / lotUnit
 
     const { data: trade, error: tradeError } = await supabase
       .from('trades')

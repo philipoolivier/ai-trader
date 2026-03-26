@@ -8,11 +8,24 @@ export interface TradingConfig {
   maxLotSize: number
 }
 
-// Standard forex lot sizes
-// 1 standard lot = 100,000 units
-// 1 mini lot = 10,000 units
-// 1 micro lot = 1,000 units
+// Standard lot sizes vary by instrument
+// Forex: 1 lot = 100,000 units
+// Gold (XAU): 1 lot = 100 oz
+// Silver (XAG): 1 lot = 5,000 oz
+export const LOT_UNIT_FOREX = 100_000
+export const LOT_UNIT_GOLD = 100
+export const LOT_UNIT_SILVER = 5_000
+
+// For backwards compatibility
 export const LOT_UNIT = 100_000
+
+// Get the correct lot unit for a symbol
+export function getLotUnit(symbol: string): number {
+  const s = symbol.toUpperCase().replace('/', '')
+  if (s.startsWith('XAU')) return LOT_UNIT_GOLD
+  if (s.startsWith('XAG')) return LOT_UNIT_SILVER
+  return LOT_UNIT_FOREX
+}
 
 export const LOT_PRESETS = [
   { label: '0.01', value: 0.01 },

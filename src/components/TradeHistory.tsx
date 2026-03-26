@@ -59,7 +59,7 @@ export default function TradeHistory({ trades, loading }: TradeHistoryProps) {
                   {trade.side.toUpperCase()}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right text-sm text-text-primary">{(trade.quantity / 100_000).toFixed(2)}</td>
+              <td className="px-4 py-3 text-right text-sm text-text-primary">{(trade.quantity / (trade.symbol?.startsWith('XAU') ? 100 : trade.symbol?.startsWith('XAG') ? 5000 : 100000)).toFixed(2)}</td>
               <td className="px-4 py-3 text-right text-sm text-text-secondary">{formatCurrency(trade.price)}</td>
               <td className="px-4 py-3 text-right text-sm text-loss">
                 {trade.stop_loss ? formatCurrency(trade.stop_loss) : '—'}

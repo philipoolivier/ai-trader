@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { getPrice } from '@/lib/twelvedata'
-import { LOT_UNIT } from '@/lib/trading-config'
+import { getLotUnit } from '@/lib/trading-config'
 
 const DEFAULT_USER_ID = 'default-user'
 
@@ -28,7 +28,8 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
   const leverage = params.leverage || DEFAULT_LEVERAGE
 
   const lotSize = Math.max(params.lotSize, 0.01) // Minimum 0.01 lots
-  const units = Math.round(lotSize * LOT_UNIT)
+  const lotUnit = getLotUnit(symbol)
+  const units = Math.round(lotSize * lotUnit)
 
   if (!symbol || !side || lotSize <= 0) {
     throw new Error('Invalid trade parameters')
@@ -37,8 +38,10 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
   // Get current price
   const price = await getPrice(symbol)
 
-  // Margin required = (lots * 100,000 * price) / leverage
-  const notional = lotSize * LOT_UNIT * price
+  // Margin required = (lots * contract_size * price) / leverage
+  // Forex: 0.01 * 100,000 * 1.08 / 1000 = $1.08
+  // Gold:  0.01 * 100 * 4522 / 1000 = $4.52
+  const notional = lotSize * lotUnit * price
   const marginRequired = notional / leverage
 
   // Get portfolio
@@ -74,7 +77,7 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
     if (isClosing) {
       // Closing (fully or partially) an existing position
       const closeUnits = Math.min(units, existingPosition.quantity)
-      const closeLots = closeUnits / LOT_UNIT
+      const closeLots = closeUnits / lotUnit
       const remainingUnits = existingPosition.quantity - closeUnits
 
       // Calculate P&L
@@ -102,7 +105,7 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
       // If leftover, flip position
       if (units > existingPosition.quantity) {
         const flipUnits = units - existingPosition.quantity
-        const flipLots = flipUnits / LOT_UNIT
+        const flipLots = flipUnits / lotUnit
         const flipMargin = (flipUnits * price) / leverage
         const flipSide = side === 'buy' ? 'long' : 'short'
 
