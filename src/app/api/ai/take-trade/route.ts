@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
     // Try to find and update suggestion, but don't fail if not found
     let suggestion = null
-    if (suggestionId) {
+    if (suggestionId && suggestionId.length > 5) {
       const { data } = await supabase
         .from('ai_suggestions')
         .select('*')

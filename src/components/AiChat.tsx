@@ -69,7 +69,7 @@ export default function AiChat({
                 <TradeCardsPanel
                   analysis={msg.analysis}
                   trades={msg.trades}
-                  onTake={(trade) => pendingSuggestionId && onTakeTrade(trade, pendingSuggestionId)}
+                  onTake={(trade) => onTakeTrade(trade, pendingSuggestionId || '')}
                   onSkip={() => pendingSuggestionId && onSkip(pendingSuggestionId)}
                   cashBalance={cashBalance}
                 />
@@ -238,21 +238,17 @@ function TradeCardsPanel({
             )}
 
             {/* Action */}
-            {!isActed ? (
-              <button
-                onClick={() => handleTake(trade, i)}
-                className={cn(
-                  'w-full py-1.5 text-xs font-semibold rounded transition-colors',
-                  isBuy ? 'bg-profit/15 text-profit hover:bg-profit/25 border border-profit/20' : 'bg-loss/15 text-loss hover:bg-loss/25 border border-loss/20'
-                )}
-              >
-                Take {label}
-              </button>
-            ) : (
-              <div className="flex items-center justify-center gap-1 py-1 text-[10px] text-text-muted">
-                <Check size={10} /> Executed
-              </div>
-            )}
+            <button
+              onClick={() => handleTake(trade, i)}
+              className={cn(
+                'w-full py-1.5 text-xs font-semibold rounded transition-colors',
+                isActed
+                  ? 'bg-surface-3 text-text-muted border border-surface-4'
+                  : isBuy ? 'bg-profit/15 text-profit hover:bg-profit/25 border border-profit/20' : 'bg-loss/15 text-loss hover:bg-loss/25 border border-loss/20'
+              )}
+            >
+              {isActed ? 'Re-take Trade' : `Take ${label}`}
+            </button>
           </div>
         )
       })}
