@@ -131,15 +131,17 @@ export default function PortfolioPage() {
     setConfig(updated)
   }
 
-  // Portfolio value = cash + unrealized P&L (not full notional)
-  const unrealizedPnl = positionsWithQuotes.reduce((sum, p) => sum + p.unrealized_pnl, 0)
-  const cashBalance = data?.portfolio?.cash_balance || 0
+  // MT4-style: Balance = cash (realized), Equity = balance + floating P&L
+  const floatingPnl = positionsWithQuotes.reduce((sum, p) => sum + p.unrealized_pnl, 0)
+  const balance = data?.portfolio?.cash_balance || 0
+  const equity = balance + floatingPnl
   const initialBalance = data?.portfolio?.initial_balance || 500
-  const totalValue = cashBalance + unrealizedPnl
-  const realizedPnl = (data?.trades || [])
-    .filter(t => t.pnl !== null)
-    .reduce((sum, t) => sum + (t.pnl || 0), 0)
-  const totalPnl = totalValue - initialBalance
+  const margin = positionsWithQuotes.length > 0
+    ? positionsWithQuotes.reduce((sum, p) => sum + (p.market_value / (config.leverage || 1000)), 0)
+    : 0
+  const freeMargin = equity - margin
+  const marginLevel = margin > 0 ? (equity / margin) * 100 : 0
+  const totalPnl = equity - initialBalance
   const totalPnlPercent = initialBalance > 0 ? (totalPnl / initialBalance) * 100 : 0
 
   const closedTrades = (data?.trades || []).filter((t) => t.pnl !== null)
@@ -156,13 +158,22 @@ export default function PortfolioPage() {
   const totalLosses = Math.abs(losingTrades.reduce((sum, t) => sum + (t.pnl || 0), 0))
   const profitFactor = totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? Infinity : 0
 
-  const chartData = (data?.snapshots || []).map((s) => ({
-    date: new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    value: s.total_value,
-  }))
-  if (totalValue > 0) {
-    chartData.push({ date: 'Now', value: totalValue })
+  // Build equity curve from trade history (each closed trade is a data point)
+  const equityCurve: { date: string; value: number }[] = []
+  let runningBalance = initialBalance
+  const sortedTrades = [...(data?.trades || [])]
+    .filter(t => t.pnl !== null)
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+
+  for (const trade of sortedTrades) {
+    runningBalance += trade.pnl || 0
+    equityCurve.push({
+      date: new Date(trade.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      value: runningBalance,
+    })
   }
+  // Add current equity as final point
+  equityCurve.push({ date: 'Now', value: equity })
 
   return (
     <div className="space-y-6">
@@ -263,34 +274,36 @@ export default function PortfolioPage() {
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Account Value"
-          value={totalValue}
-          change={totalPnl}
-          changePercent={totalPnlPercent}
-          icon={<DollarSign size={18} />}
-          format="currency"
-        />
-        <StatCard
-          title="Cash (Free Margin)"
-          value={cashBalance}
-          icon={<DollarSign size={18} />}
-          format="currency"
-        />
-        <StatCard
-          title="Unrealized P&L"
-          value={unrealizedPnl}
-          icon={<TrendingUp size={18} />}
-          format="currency"
-        />
-        <StatCard
-          title="Realized P&L"
-          value={realizedPnl}
-          icon={<DollarSign size={18} />}
-          format="currency"
-        />
+      {/* MT4-style Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
+          <span className="text-xs text-text-muted block mb-1">Balance</span>
+          <span className="text-lg font-bold text-text-primary">{formatCurrency(balance)}</span>
+        </div>
+        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
+          <span className="text-xs text-text-muted block mb-1">Equity</span>
+          <span className={cn('text-lg font-bold', equity >= balance ? 'text-profit' : 'text-loss')}>{formatCurrency(equity)}</span>
+        </div>
+        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
+          <span className="text-xs text-text-muted block mb-1">Floating P&L</span>
+          <span className={cn('text-lg font-bold', floatingPnl >= 0 ? 'text-profit' : 'text-loss')}>
+            {floatingPnl >= 0 ? '+' : ''}{formatCurrency(floatingPnl)}
+          </span>
+        </div>
+        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
+          <span className="text-xs text-text-muted block mb-1">Margin</span>
+          <span className="text-lg font-bold text-text-primary">{formatCurrency(margin)}</span>
+        </div>
+        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
+          <span className="text-xs text-text-muted block mb-1">Free Margin</span>
+          <span className="text-lg font-bold text-text-primary">{formatCurrency(freeMargin)}</span>
+        </div>
+        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
+          <span className="text-xs text-text-muted block mb-1">Margin Level</span>
+          <span className={cn('text-lg font-bold', marginLevel > 200 ? 'text-profit' : marginLevel > 100 ? 'text-yellow-400' : 'text-loss')}>
+            {margin > 0 ? `${marginLevel.toFixed(0)}%` : '—'}
+          </span>
+        </div>
       </div>
 
       {/* Performance Metrics */}
@@ -319,7 +332,7 @@ export default function PortfolioPage() {
       {/* Chart */}
       <div className="bg-surface-1 rounded-xl border border-surface-3 p-6">
         <h2 className="text-lg font-semibold text-text-primary mb-4">Equity Curve</h2>
-        <PortfolioChart data={chartData} />
+        <PortfolioChart data={equityCurve} initialBalance={initialBalance} />
       </div>
 
       {/* Open Positions */}

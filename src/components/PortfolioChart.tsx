@@ -1,29 +1,35 @@
 'use client'
 
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
 
 interface PortfolioChartProps {
   data: { date: string; value: number }[]
+  initialBalance?: number
 }
 
-export default function PortfolioChart({ data }: PortfolioChartProps) {
-  if (data.length < 2) {
+export default function PortfolioChart({ data, initialBalance = 500 }: PortfolioChartProps) {
+  if (data.length === 0) {
     return (
       <div className="h-[300px] flex items-center justify-center text-text-muted text-sm">
-        Chart will appear after more trading activity
+        Equity curve will appear after your first trade
       </div>
     )
   }
 
-  const startValue = data[0]?.value || 0
-  const endValue = data[data.length - 1]?.value || 0
+  // Even a single point should show (as a dot on the chart)
+  const chartData = data.length === 1
+    ? [{ date: 'Start', value: initialBalance }, ...data]
+    : data
+
+  const startValue = chartData[0]?.value || initialBalance
+  const endValue = chartData[chartData.length - 1]?.value || initialBalance
   const isPositive = endValue >= startValue
 
   return (
     <div className="h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+        <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
           <defs>
             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
               <stop
@@ -49,7 +55,7 @@ export default function PortfolioChart({ data }: PortfolioChartProps) {
             tick={{ fill: '#5e5e72', fontSize: 11 }}
             tickLine={false}
             axisLine={{ stroke: '#232330' }}
-            tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+            tickFormatter={(v) => `$${v.toFixed(0)}`}
             domain={['auto', 'auto']}
           />
           <Tooltip
@@ -60,8 +66,14 @@ export default function PortfolioChart({ data }: PortfolioChartProps) {
               color: '#f0f0f5',
               fontSize: '13px',
             }}
-            formatter={(value: number) => [formatCurrency(value), 'Portfolio Value']}
+            formatter={(value: number) => [formatCurrency(value), 'Equity']}
             labelStyle={{ color: '#9494a8' }}
+          />
+          <ReferenceLine
+            y={initialBalance}
+            stroke="#5e5e72"
+            strokeDasharray="3 3"
+            label={{ value: 'Start', fill: '#5e5e72', fontSize: 10, position: 'right' }}
           />
           <Area
             type="monotone"
