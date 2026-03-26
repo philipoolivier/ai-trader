@@ -128,7 +128,7 @@ function TradePageContent() {
         {/* Chart */}
         <div className="lg:col-span-2 space-y-3">
           <div ref={chartContainerRef} className="bg-surface-1 rounded-xl border border-surface-3 p-5">
-            <TradingViewChart symbol={selectedSymbol} interval="D" height={450} />
+            <TradingViewChart symbol={selectedSymbol} interval="5" height={450} />
           </div>
           <ChartScreenshotButton
             chartRef={chartContainerRef}

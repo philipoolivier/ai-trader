@@ -65,8 +65,11 @@ export async function GET() {
 }
 
 // Reset portfolio
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const deleteHistory = searchParams.get('deleteHistory') === 'true'
+
     const { data: portfolio } = await supabase
       .from('portfolios')
       .select('id')
@@ -74,10 +77,16 @@ export async function DELETE() {
       .single()
 
     if (portfolio) {
-      await supabase.from('ai_suggestions').delete().eq('portfolio_id', portfolio.id)
-      await supabase.from('trades').delete().eq('portfolio_id', portfolio.id)
+      // Always close positions and reset balance
       await supabase.from('positions').delete().eq('portfolio_id', portfolio.id)
       await supabase.from('portfolio_snapshots').delete().eq('portfolio_id', portfolio.id)
+
+      if (deleteHistory) {
+        // Full reset — delete everything
+        await supabase.from('ai_suggestions').delete().eq('portfolio_id', portfolio.id)
+        await supabase.from('trades').delete().eq('portfolio_id', portfolio.id)
+      }
+
       await supabase
         .from('portfolios')
         .update({ cash_balance: INITIAL_BALANCE, initial_balance: INITIAL_BALANCE })

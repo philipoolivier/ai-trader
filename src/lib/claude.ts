@@ -79,10 +79,32 @@ After your FULL analysis, on a new line, append this structured data block for t
 }
 
 export async function analyzeChart(
-  imageBase64: string,
-  mimeType: string
+  imageBase64: string | string[],
+  mimeType: string | string[]
 ): Promise<{ text: string; analysis: ChartAnalysisResponse | null }> {
   const prompt = getChartAnalysisPrompt()
+
+  // Support single or multiple images
+  const images = Array.isArray(imageBase64) ? imageBase64 : [imageBase64]
+  const mimeTypes = Array.isArray(mimeType) ? mimeType : [mimeType]
+
+  const content: { type: string; source?: { type: string; media_type: string; data: string }; text?: string }[] = []
+
+  for (let i = 0; i < images.length; i++) {
+    if (images.length > 1) {
+      content.push({ type: 'text', text: `**Chart ${i + 1} of ${images.length}:**` })
+    }
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: mimeTypes[i] || mimeTypes[0], data: images[i] },
+    })
+  }
+
+  if (images.length > 1) {
+    content.push({ type: 'text', text: `These are ${images.length} different timeframe charts of the same instrument. Analyze ALL timeframes together for a multi-timeframe confluence analysis.\n\n${prompt}` })
+  } else {
+    content.push({ type: 'text', text: prompt })
+  }
 
   const res = await fetch(CLAUDE_API_URL, {
     method: 'POST',
@@ -95,16 +117,7 @@ export async function analyzeChart(
       model: MODEL,
       max_tokens: 8000,
       messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: mimeType, data: imageBase64 },
-            },
-            { type: 'text', text: prompt },
-          ],
-        },
+        { role: 'user', content },
       ],
     }),
   })

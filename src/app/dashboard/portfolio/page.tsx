@@ -86,11 +86,14 @@ export default function PortfolioPage() {
     return () => clearInterval(interval)
   }, [fetchData])
 
-  const handleReset = async () => {
-    if (!confirm('Reset your portfolio to $500? All trades and positions will be deleted.')) return
+  const handleReset = async (deleteHistory: boolean = false) => {
+    const msg = deleteHistory
+      ? 'Reset portfolio to $500 AND delete all trade history? This cannot be undone.'
+      : 'Reset portfolio to $500? Open positions will be closed but trade history will be kept.'
+    if (!confirm(msg)) return
     setResetting(true)
     try {
-      await fetch('/api/portfolio', { method: 'DELETE' })
+      await fetch(`/api/portfolio?deleteHistory=${deleteHistory}`, { method: 'DELETE' })
       setPositionsWithQuotes([])
       await fetchData()
     } catch {
@@ -133,14 +136,24 @@ export default function PortfolioPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-text-primary">Portfolio</h1>
-        <button
-          onClick={handleReset}
-          disabled={resetting}
-          className="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:text-loss bg-surface-1 border border-surface-3 rounded-lg hover:border-loss/30 transition-colors disabled:opacity-50"
-        >
-          <RotateCcw size={14} className={resetting ? 'animate-spin' : ''} />
-          Reset Portfolio
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleReset(false)}
+            disabled={resetting}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:text-brand-400 bg-surface-1 border border-surface-3 rounded-lg hover:border-brand-600/30 transition-colors disabled:opacity-50"
+          >
+            <RotateCcw size={14} className={resetting ? 'animate-spin' : ''} />
+            Reset Balance
+          </button>
+          <button
+            onClick={() => handleReset(true)}
+            disabled={resetting}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:text-loss bg-surface-1 border border-surface-3 rounded-lg hover:border-loss/30 transition-colors disabled:opacity-50"
+          >
+            <RotateCcw size={14} className={resetting ? 'animate-spin' : ''} />
+            Reset All + History
+          </button>
+        </div>
       </div>
 
       {/* Stats */}

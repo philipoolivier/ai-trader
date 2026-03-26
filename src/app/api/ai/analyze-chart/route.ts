@@ -9,10 +9,14 @@ export const maxDuration = 60
 
 export async function POST(request: Request) {
   try {
-    const { image, mimeType } = await request.json()
+    const { image, images, mimeType, mimeTypes } = await request.json()
 
-    if (!image || !mimeType) {
-      return NextResponse.json({ error: 'Image and mimeType are required' }, { status: 400 })
+    // Support single image or array of images
+    const imageData = images || (image ? [image] : null)
+    const mimeData = mimeTypes || (mimeType ? [mimeType] : null)
+
+    if (!imageData || !mimeData || imageData.length === 0) {
+      return NextResponse.json({ error: 'At least one image is required' }, { status: 400 })
     }
 
     if (!process.env.CLAUDE_API_KEY) {
@@ -22,7 +26,7 @@ export async function POST(request: Request) {
     // Analyze chart with Claude — returns full text analysis + optional structured data
     let result
     try {
-      result = await analyzeChart(image, mimeType)
+      result = await analyzeChart(imageData, mimeData)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown Claude API error'
       return NextResponse.json({ error: `AI analysis error: ${msg}` }, { status: 500 })
