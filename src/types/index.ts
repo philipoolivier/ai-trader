@@ -142,6 +142,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   analysis?: ChartAnalysisResponse | null
+  trades?: ChartAnalysisResponse[]
   timestamp: string
 }
 

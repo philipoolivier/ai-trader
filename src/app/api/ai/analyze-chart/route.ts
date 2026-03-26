@@ -94,6 +94,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       text: result.text,
       analysis: result.analysis,
+      trades: result.trades || [],
       suggestionId,
     })
   } catch (error: unknown) {

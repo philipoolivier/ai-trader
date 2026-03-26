@@ -83,16 +83,21 @@ CRITICAL RULES:
 - Don't hedge everything — take a stance, explain your reasoning.
 - Use your macro knowledge. Don't just read the chart in isolation.
 
-After your FULL analysis, on a new line, append this structured data block for the UI to parse:
+After your FULL analysis, append structured data for EACH trade scenario you described. Output one ---TRADE_DATA--- block per trade:
+
 ---TRADE_DATA---
-{"symbol":"XAUUSD","direction":"buy_or_sell_or_null","entry_price":0,"stop_loss":0,"take_profit":0,"confidence":0_to_10,"patterns":[],"trend":"uptrend_downtrend_ranging","support_levels":[],"resistance_levels":[],"indicators_detected":[],"risk_reward_ratio":0,"follow_up_suggestion":"string_or_null"}`
+{"label":"SCALP - Breakdown","symbol":"XAUUSD","direction":"buy_or_sell","entry_price":0,"stop_loss":0,"take_profit":0,"confidence":0_to_10,"order_type":"market_or_buy_stop_or_buy_limit_or_sell_stop_or_sell_limit","patterns":[],"trend":"uptrend_downtrend_ranging","support_levels":[],"resistance_levels":[],"indicators_detected":[],"risk_reward_ratio":0}
+---TRADE_DATA---
+{"label":"INTRADAY - Continuation","symbol":"XAUUSD","direction":"buy_or_sell","entry_price":0,"stop_loss":0,"take_profit":0,"confidence":0_to_10,"order_type":"market_or_buy_stop_or_buy_limit_or_sell_stop_or_sell_limit","patterns":[],"trend":"uptrend_downtrend_ranging","support_levels":[],"resistance_levels":[],"indicators_detected":[],"risk_reward_ratio":0}
+
+Output one block per scenario (scalp, intraday, counter-trend etc). Each must have a descriptive "label" and correct "order_type".`
 }
 
 export async function analyzeChart(
   imageBase64: string | string[],
   mimeType: string | string[],
   indicatorContext: string = ''
-): Promise<{ text: string; analysis: ChartAnalysisResponse | null }> {
+): Promise<{ text: string; analysis: ChartAnalysisResponse | null; trades: ChartAnalysisResponse[] }> {
   const prompt = getChartAnalysisPrompt()
 
   // Support single or multiple images
@@ -143,22 +148,24 @@ export async function analyzeChart(
   const data = await res.json()
   const fullText = data.content?.[0]?.text || ''
 
-  // Extract trade data from the end of the response
+  // Extract all trade data blocks
   let analysis: ChartAnalysisResponse | null = null
+  const trades: ChartAnalysisResponse[] = []
   let displayText = fullText
 
-  const tradeDataMatch = fullText.match(/---TRADE_DATA---\s*(\{[\s\S]*?\})/)
-  if (tradeDataMatch) {
+  const tradeDataRegex = /---TRADE_DATA---\s*(\{[\s\S]*?\})/g
+  let match
+  while ((match = tradeDataRegex.exec(fullText)) !== null) {
     try {
-      analysis = JSON.parse(tradeDataMatch[1])
-      // Remove the trade data block from display text
-      displayText = fullText.replace(/---TRADE_DATA---\s*\{[\s\S]*?\}/, '').trim()
-    } catch {
-      // If JSON parsing fails, just use the full text
-    }
+      const parsed = JSON.parse(match[1])
+      trades.push(parsed)
+      if (!analysis) analysis = parsed // First trade is primary
+    } catch { /* skip malformed */ }
   }
+  // Remove all trade data blocks from display text
+  displayText = fullText.replace(/---TRADE_DATA---\s*\{[\s\S]*?\}/g, '').trim()
 
-  return { text: displayText, analysis }
+  return { text: displayText, analysis, trades }
 }
 
 // ── Conversational Chart Data Analysis ────────────────────────────────

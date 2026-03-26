@@ -115,6 +115,7 @@ export default function AiPage() {
           role: 'assistant',
           content: data.text || data.analysis?.reasoning || 'Analysis complete.',
           analysis: data.analysis || null,
+          trades: data.trades || [],
           timestamp: new Date().toISOString(),
         }])
         fetchHistory()
@@ -176,6 +177,7 @@ export default function AiPage() {
           role: 'assistant',
           content: data.message || data.analysis?.reasoning || 'Analysis complete.',
           analysis: data.analysis || null,
+          trades: data.trades || [],
           timestamp: new Date().toISOString(),
         }
         setChatMessages((prev) => [...prev, assistantMsg])
@@ -236,6 +238,7 @@ export default function AiPage() {
           id: `assistant-${Date.now()}`, role: 'assistant',
           content: data.message || 'Analysis complete.',
           analysis: data.analysis || null,
+          trades: data.trades || [],
           timestamp: new Date().toISOString(),
         }])
       } else {
