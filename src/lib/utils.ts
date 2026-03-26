@@ -5,12 +5,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(value: number): string {
-  // Detect appropriate decimal places based on value
-  // Forex pairs (< $10): 5 decimals (e.g., 1.15342)
-  // Metals/indices (> $10): 2 decimals (e.g., $4,522.50)
+export function formatCurrency(value: number, symbol?: string): string {
+  // Detect appropriate decimal places
+  // JPY pairs (50-200 range): 3 decimals (150.342)
+  // Forex pairs (< $10): 5 decimals (1.15342)
+  // Metals/indices (> $200): 2 decimals ($4,522.50)
   const absVal = Math.abs(value)
-  const decimals = absVal > 0 && absVal < 10 ? 5 : 2
+  const isJpy = symbol ? symbol.toUpperCase().includes('JPY') : false
+  let decimals = 2
+  if (isJpy || (absVal >= 10 && absVal < 200)) {
+    decimals = 3
+  } else if (absVal > 0 && absVal < 10) {
+    decimals = 5
+  }
 
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
