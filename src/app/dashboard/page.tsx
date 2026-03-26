@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { DollarSign, TrendingUp, BarChart3, Activity } from 'lucide-react'
 import StatCard from '@/components/StatCard'
+import PendingOrdersPanel from '@/components/PendingOrdersPanel'
 import PositionsTable from '@/components/PositionsTable'
 import PortfolioChart from '@/components/PortfolioChart'
 import TradeHistory from '@/components/TradeHistory'
@@ -182,6 +183,9 @@ export default function DashboardPage() {
           onPositionClosed={fetchPortfolio}
         />
       </div>
+
+      {/* Pending Orders */}
+      <PendingOrdersPanel onOrderTriggered={fetchPortfolio} />
 
       {/* Recent Trades */}
       <div className="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden">
