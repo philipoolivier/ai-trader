@@ -45,28 +45,30 @@ Format as: Level | Price | Significance
 Read EVERY indicator visible on the chart. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume profile showing distribution or accumulation?
 
 ### Trade Scenarios
-Give me SPECIFIC trade scenarios. For EACH scenario specify the trade type and order type:
+Give me SPECIFIC trade scenarios. This trader is primarily a SCALPER but also takes intraday swings when the setup is clean.
 
-**SCALP TRADE — [Quick in/out, 5-30 pip target]**
+IMPORTANT: Do NOT use fixed pip values for SL/TP. Every instrument has different volatility and structure. Instead:
+- Place SL based on STRUCTURE: behind the nearest swing high/low, order block, liquidity zone, or invalidation level. The SL should be where the trade idea is WRONG, not an arbitrary distance.
+- Place TP based on STRUCTURE: the next key level, liquidity pool, session high/low, or where price is likely to react. Use ATR, recent range, and visible structure to gauge realistic targets.
+- Adapt to the instrument. Gold (XAU/USD) moves $20-50/day. EUR/USD moves 50-80 pips/day. Each needs different placement.
+
+For EACH scenario:
+
+**SCALP — [Description]**
 - Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
-- Entry: Exact price
-- Stop: Exact price (tight, 10-15 pips) and why there
-- Target: Exact price (5-30 pips away)
+- Entry: Exact price and why here (e.g., "break of London high", "retest of order block")
+- Stop: Exact price — placed behind [specific structure]. Why the trade is invalid if this level breaks.
+- Target: Exact price — the next [specific level]. Why price should reach here.
 - R:R ratio
-- Why this works
+- Confluence: What makes this high probability (e.g., "liquidity sweep + FVG fill + session open alignment")
 
-**INTRADAY TRADE — [Session trade, 30-100+ pip target]**
-- Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
-- Entry: Exact price
-- Stop: Exact price (20-50 pips) and why there
-- Target 1: Price + why (partial close)
-- Target 2: Price + why (runner)
-- R:R ratio
-- Why this works
+**INTRADAY SWING — [Description]** (if setup exists)
+- Same format but wider structural targets
+- Partial close level + runner target
 
-**ALTERNATIVE / COUNTER-TREND**
+**COUNTER-TREND / ALTERNATIVE**
 - Same format
-- Why this is lower/higher conviction
+- Why this is lower conviction and what would activate it
 
 ### Overall Bias
 What's your lean? What invalidates it? What would flip you the other way?
@@ -193,28 +195,30 @@ Format as: Level | Price | Significance
 Read EVERY indicator provided. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume showing distribution or accumulation?
 
 ### Trade Scenarios
-Give me SPECIFIC trade scenarios. For EACH scenario specify the trade type and order type:
+Give me SPECIFIC trade scenarios. This trader is primarily a SCALPER but also takes intraday swings when the setup is clean.
 
-**SCALP TRADE — [Quick in/out, 5-30 pip target]**
+IMPORTANT: Do NOT use fixed pip values for SL/TP. Every instrument has different volatility and structure. Instead:
+- Place SL based on STRUCTURE: behind the nearest swing high/low, order block, liquidity zone, or invalidation level. The SL should be where the trade idea is WRONG, not an arbitrary distance.
+- Place TP based on STRUCTURE: the next key level, liquidity pool, session high/low, or where price is likely to react. Use ATR, recent range, and visible structure to gauge realistic targets.
+- Adapt to the instrument. Gold (XAU/USD) moves $20-50/day. EUR/USD moves 50-80 pips/day. Each needs different placement.
+
+For EACH scenario:
+
+**SCALP — [Description]**
 - Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
-- Entry: Exact price
-- Stop: Exact price (tight, 10-15 pips) and why there
-- Target: Exact price (5-30 pips away)
+- Entry: Exact price and why here (e.g., "break of London high", "retest of order block")
+- Stop: Exact price — placed behind [specific structure]. Why the trade is invalid if this level breaks.
+- Target: Exact price — the next [specific level]. Why price should reach here.
 - R:R ratio
-- Why this works
+- Confluence: What makes this high probability (e.g., "liquidity sweep + FVG fill + session open alignment")
 
-**INTRADAY TRADE — [Session trade, 30-100+ pip target]**
-- Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
-- Entry: Exact price
-- Stop: Exact price (20-50 pips) and why there
-- Target 1: Price + why (partial close)
-- Target 2: Price + why (runner)
-- R:R ratio
-- Why this works
+**INTRADAY SWING — [Description]** (if setup exists)
+- Same format but wider structural targets
+- Partial close level + runner target
 
-**ALTERNATIVE / COUNTER-TREND**
+**COUNTER-TREND / ALTERNATIVE**
 - Same format
-- Why this is lower/higher conviction
+- Why this is lower conviction and what would activate it
 
 ### Overall Bias
 What's your lean? What invalidates it? What would flip you the other way?
