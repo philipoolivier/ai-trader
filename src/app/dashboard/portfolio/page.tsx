@@ -136,12 +136,7 @@ export default function PortfolioPage() {
   const balance = data?.portfolio?.cash_balance || 0
   const equity = balance + floatingPnl
   const initialBalance = data?.portfolio?.initial_balance || 500
-  const margin = positionsWithQuotes.length > 0
-    ? positionsWithQuotes.reduce((sum, p) => sum + (p.market_value / (config.leverage || 1000)), 0)
-    : 0
-  const freeMargin = equity - margin
-  const marginLevel = margin > 0 ? (equity / margin) * 100 : 0
-  const totalPnl = equity - initialBalance
+  const totalPnl = balance - initialBalance
   const totalPnlPercent = initialBalance > 0 ? (totalPnl / initialBalance) * 100 : 0
 
   const closedTrades = (data?.trades || []).filter((t) => t.pnl !== null)
@@ -158,8 +153,10 @@ export default function PortfolioPage() {
   const totalLosses = Math.abs(losingTrades.reduce((sum, t) => sum + (t.pnl || 0), 0))
   const profitFactor = totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? Infinity : 0
 
-  // Build equity curve from trade history (each closed trade is a data point)
-  const equityCurve: { date: string; value: number }[] = []
+  // Build equity curve: starts at initial balance, each closed trade adds a point
+  const equityCurve: { date: string; value: number }[] = [
+    { date: 'Start', value: initialBalance },
+  ]
   let runningBalance = initialBalance
   const sortedTrades = [...(data?.trades || [])]
     .filter(t => t.pnl !== null)
@@ -172,8 +169,10 @@ export default function PortfolioPage() {
       value: runningBalance,
     })
   }
-  // Add current equity as final point
-  equityCurve.push({ date: 'Now', value: equity })
+  // Add current equity (with floating P&L) as final point
+  if (floatingPnl !== 0) {
+    equityCurve.push({ date: 'Now', value: equity })
+  }
 
   return (
     <div className="space-y-6">
@@ -274,35 +273,26 @@ export default function PortfolioPage() {
         </div>
       )}
 
-      {/* MT4-style Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
+      {/* Balance / Equity / Floating P&L */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-surface-1 rounded-xl border border-surface-3 p-5">
           <span className="text-xs text-text-muted block mb-1">Balance</span>
-          <span className="text-lg font-bold text-text-primary">{formatCurrency(balance)}</span>
+          <span className="text-2xl font-bold text-text-primary">{formatCurrency(balance)}</span>
+          <span className={cn('text-xs block mt-1', totalPnl >= 0 ? 'text-profit' : 'text-loss')}>
+            {totalPnl >= 0 ? '+' : ''}{formatCurrency(totalPnl)} ({totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(1)}%)
+          </span>
         </div>
-        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
+        <div className="bg-surface-1 rounded-xl border border-surface-3 p-5">
           <span className="text-xs text-text-muted block mb-1">Equity</span>
-          <span className={cn('text-lg font-bold', equity >= balance ? 'text-profit' : 'text-loss')}>{formatCurrency(equity)}</span>
+          <span className={cn('text-2xl font-bold', equity >= balance ? 'text-profit' : 'text-loss')}>{formatCurrency(equity)}</span>
+          <span className="text-xs text-text-muted block mt-1">Balance {floatingPnl >= 0 ? '+' : '−'} floating</span>
         </div>
-        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
+        <div className="bg-surface-1 rounded-xl border border-surface-3 p-5">
           <span className="text-xs text-text-muted block mb-1">Floating P&L</span>
-          <span className={cn('text-lg font-bold', floatingPnl >= 0 ? 'text-profit' : 'text-loss')}>
+          <span className={cn('text-2xl font-bold', floatingPnl >= 0 ? 'text-profit' : 'text-loss')}>
             {floatingPnl >= 0 ? '+' : ''}{formatCurrency(floatingPnl)}
           </span>
-        </div>
-        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
-          <span className="text-xs text-text-muted block mb-1">Margin</span>
-          <span className="text-lg font-bold text-text-primary">{formatCurrency(margin)}</span>
-        </div>
-        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
-          <span className="text-xs text-text-muted block mb-1">Free Margin</span>
-          <span className="text-lg font-bold text-text-primary">{formatCurrency(freeMargin)}</span>
-        </div>
-        <div className="bg-surface-1 rounded-xl border border-surface-3 p-4">
-          <span className="text-xs text-text-muted block mb-1">Margin Level</span>
-          <span className={cn('text-lg font-bold', marginLevel > 200 ? 'text-profit' : marginLevel > 100 ? 'text-yellow-400' : 'text-loss')}>
-            {margin > 0 ? `${marginLevel.toFixed(0)}%` : '—'}
-          </span>
+          <span className="text-xs text-text-muted block mt-1">{positionsWithQuotes.length} open position{positionsWithQuotes.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
 

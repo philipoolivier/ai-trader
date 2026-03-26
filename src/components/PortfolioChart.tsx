@@ -9,27 +9,22 @@ interface PortfolioChartProps {
 }
 
 export default function PortfolioChart({ data, initialBalance = 500 }: PortfolioChartProps) {
-  if (data.length === 0) {
+  if (data.length < 2) {
     return (
       <div className="h-[300px] flex items-center justify-center text-text-muted text-sm">
-        Equity curve will appear after your first trade
+        Equity curve will appear after your first closed trade
       </div>
     )
   }
 
-  // Even a single point should show (as a dot on the chart)
-  const chartData = data.length === 1
-    ? [{ date: 'Start', value: initialBalance }, ...data]
-    : data
-
-  const startValue = chartData[0]?.value || initialBalance
-  const endValue = chartData[chartData.length - 1]?.value || initialBalance
+  const startValue = data[0]?.value || initialBalance
+  const endValue = data[data.length - 1]?.value || initialBalance
   const isPositive = endValue >= startValue
 
   return (
     <div className="h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+        <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
           <defs>
             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
               <stop
