@@ -52,6 +52,11 @@ export default function DashboardPage() {
                 const unrealizedPnlPercent = pos.side === 'short'
                   ? ((pos.avg_price - currentPrice) / pos.avg_price) * 100
                   : ((currentPrice - pos.avg_price) / pos.avg_price) * 100
+                // Find latest trade SL/TP for this position
+                const latestTrade = (json.trades || []).find(
+                  (t: { symbol: string; stop_loss?: number; take_profit?: number }) =>
+                    t.symbol === pos.symbol && (t.stop_loss || t.take_profit)
+                )
                 return {
                   ...pos,
                   current_price: currentPrice,
@@ -59,6 +64,8 @@ export default function DashboardPage() {
                   unrealized_pnl: unrealizedPnl,
                   unrealized_pnl_percent: unrealizedPnlPercent,
                   name: quote.name,
+                  stop_loss: latestTrade?.stop_loss || null,
+                  take_profit: latestTrade?.take_profit || null,
                 }
               } catch {
                 return {

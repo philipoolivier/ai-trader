@@ -80,6 +80,8 @@ export default function PositionsTable({ positions, loading, onSymbolClick, onPo
                 <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Lots</th>
                 <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Avg Price</th>
                 <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">Current</th>
+                <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">SL</th>
+                <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">TP</th>
                 <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">P&L</th>
                 <th className="text-right text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">P&L %</th>
                 <th className="text-center text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3"></th>
@@ -106,6 +108,26 @@ export default function PositionsTable({ positions, loading, onSymbolClick, onPo
                   <td className="px-4 py-3 text-right text-sm text-text-primary">{(pos.quantity / getLotUnit(pos.symbol)).toFixed(2)}</td>
                   <td className="px-4 py-3 text-right text-sm text-text-secondary">{formatCurrency(pos.avg_price)}</td>
                   <td className="px-4 py-3 text-right text-sm text-text-primary">{formatCurrency(pos.current_price)}</td>
+                  <td className="px-4 py-3 text-right text-sm">
+                    {pos.stop_loss ? (
+                      <div>
+                        <span className="text-loss font-medium">{formatCurrency(pos.stop_loss)}</span>
+                        <span className="text-[10px] text-text-muted block">
+                          {((Math.abs(pos.current_price - pos.stop_loss) / pos.current_price) * 100).toFixed(1)}% away
+                        </span>
+                      </div>
+                    ) : <span className="text-text-muted">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm">
+                    {pos.take_profit ? (
+                      <div>
+                        <span className="text-profit font-medium">{formatCurrency(pos.take_profit)}</span>
+                        <span className="text-[10px] text-text-muted block">
+                          {((Math.abs(pos.take_profit - pos.current_price) / pos.current_price) * 100).toFixed(1)}% away
+                        </span>
+                      </div>
+                    ) : <span className="text-text-muted">—</span>}
+                  </td>
                   <td className={`px-4 py-3 text-right text-sm font-medium ${getPnlColor(pos.unrealized_pnl)}`}>
                     <div className="flex items-center justify-end gap-1">
                       {pos.unrealized_pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}

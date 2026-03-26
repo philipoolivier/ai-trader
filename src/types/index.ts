@@ -98,6 +98,8 @@ export interface PositionWithQuote extends Position {
   unrealized_pnl: number
   unrealized_pnl_percent: number
   name?: string
+  stop_loss?: number | null
+  take_profit?: number | null
 }
 
 // AI Features

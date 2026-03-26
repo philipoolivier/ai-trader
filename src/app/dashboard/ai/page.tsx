@@ -42,6 +42,8 @@ export default function AiPage() {
   const [tvStudies, setTvStudies] = useState<string[]>([])
   const [activeCustomIndicators, setActiveCustomIndicators] = useState<CustomIndicator[]>([])
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [savedSessions, setSavedSessions] = useState<{ id: string; symbol: string; date: string; messages: ChatMessage[] }[]>([])
+  const [showHistory, setShowHistory] = useState(false)
   const [chatSending, setChatSending] = useState(false)
   const [currentOhlc, setCurrentOhlc] = useState<OHLC[]>([])
   const [currentIndicatorValues, setCurrentIndicatorValues] = useState<IndicatorValues[]>([])
@@ -74,7 +76,33 @@ export default function AiPage() {
   useEffect(() => {
     fetchPortfolio()
     fetchHistory()
+    // Load saved sessions from localStorage
+    try {
+      const saved = localStorage.getItem('ai-analysis-sessions')
+      if (saved) setSavedSessions(JSON.parse(saved))
+    } catch { /* ignore */ }
   }, [fetchPortfolio, fetchHistory])
+
+  // Auto-save session when chat has messages
+  useEffect(() => {
+    if (chatMessages.length > 1 && selectedSymbol) {
+      const sessionId = `session-${selectedSymbol}-${chatMessages[0]?.id || Date.now()}`
+      setSavedSessions(prev => {
+        const existing = prev.findIndex(s => s.id === sessionId)
+        const session = {
+          id: sessionId,
+          symbol: selectedSymbol,
+          date: new Date().toISOString(),
+          messages: chatMessages,
+        }
+        const updated = existing >= 0
+          ? prev.map((s, i) => i === existing ? session : s)
+          : [session, ...prev].slice(0, 20) // Keep last 20 sessions
+        try { localStorage.setItem('ai-analysis-sessions', JSON.stringify(updated)) } catch { /* ignore */ }
+        return updated
+      })
+    }
+  }, [chatMessages, selectedSymbol])
 
   // Combine manual Pine Script + active custom indicators into one context string
   const buildPineScriptContext = () => {
@@ -262,6 +290,7 @@ export default function AiPage() {
   }
 
   const handleChatTakeTrade = async (analysis: ChartAnalysisResponse, suggestionId: string) => {
+    const tradeLabel = (analysis as unknown as Record<string, unknown>).label as string || undefined
     try {
       const res = await fetch('/api/ai/take-trade', {
         method: 'POST',
@@ -273,6 +302,7 @@ export default function AiPage() {
           lotSize: 0.01,
           stopLoss: analysis.stop_loss || null,
           takeProfit: analysis.take_profit || null,
+          label: tradeLabel,
         }),
       })
       const data = await res.json()
@@ -418,8 +448,8 @@ export default function AiPage() {
       {/* ── Live Chart Tab ── */}
       {tab === 'live' && (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* Watchlist Sidebar */}
-          <div className="lg:col-span-1">
+          {/* Watchlist + History Sidebar */}
+          <div className="lg:col-span-1 space-y-4">
             <Watchlist
               onSymbolClick={(sym) => {
                 setSelectedSymbol(sym)
@@ -428,6 +458,49 @@ export default function AiPage() {
                 setPendingSuggestionId(null)
               }}
             />
+
+            {/* Analysis History */}
+            {savedSessions.length > 0 && (
+              <div className="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden">
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="w-full px-4 py-3 flex items-center justify-between text-sm font-medium text-text-primary hover:bg-surface-2 transition-colors"
+                >
+                  <span>Analysis History ({savedSessions.length})</span>
+                  <span className="text-text-muted text-xs">{showHistory ? 'Hide' : 'Show'}</span>
+                </button>
+                {showHistory && (
+                  <div className="border-t border-surface-3 max-h-64 overflow-y-auto">
+                    {savedSessions.map((session) => (
+                      <button
+                        key={session.id}
+                        onClick={() => {
+                          setSelectedSymbol(session.symbol)
+                          setChatMessages(session.messages)
+                          setPendingSuggestionId(null)
+                        }}
+                        className={cn(
+                          'w-full px-4 py-2.5 text-left hover:bg-surface-2 transition-colors border-b border-surface-3/50 last:border-0',
+                          selectedSymbol === session.symbol && chatMessages.length > 0 && chatMessages[0]?.id === session.messages[0]?.id
+                            ? 'bg-brand-600/10'
+                            : ''
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-text-primary">{session.symbol}</span>
+                          <span className="text-[10px] text-text-muted">
+                            {new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-text-muted truncate mt-0.5">
+                          {session.messages.filter(m => m.role === 'assistant').length} responses
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Main Chart Area */}
