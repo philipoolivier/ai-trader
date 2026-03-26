@@ -43,9 +43,12 @@ function TradingViewChartInner({ symbol, interval = '5', height = 650, studies =
       popup_width: '1200',
       popup_height: '800',
       withdateranges: true,
-      details: true,
+      details: false,
       hotlist: false,
       enable_publishing: false,
+      hide_side_toolbar: false,
+      hide_top_toolbar: false,
+      watchlist: [],
     })
 
     const widgetDiv = document.createElement('div')
