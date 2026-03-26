@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus, X, Star } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, X, TrendingUp, TrendingDown, Star } from 'lucide-react'
+import { cn, formatCurrency, formatPercent, getPnlColor } from '@/lib/utils'
+import type { Quote } from '@/types'
 
 interface WatchlistProps {
   onSymbolClick?: (symbol: string) => void
@@ -11,9 +13,12 @@ const DEFAULT_WATCHLIST = ['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'AAPL', 'SPY'
 
 export default function Watchlist({ onSymbolClick }: WatchlistProps) {
   const [symbols, setSymbols] = useState<string[]>([])
+  const [quotes, setQuotes] = useState<Record<string, Quote>>({})
+  const [loading, setLoading] = useState(true)
   const [addInput, setAddInput] = useState('')
   const [adding, setAdding] = useState(false)
 
+  // Load from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('ai-trader-watchlist')
     if (saved) {
@@ -23,11 +28,38 @@ export default function Watchlist({ onSymbolClick }: WatchlistProps) {
     }
   }, [])
 
+  // Save to localStorage
   useEffect(() => {
     if (symbols.length > 0) {
       localStorage.setItem('ai-trader-watchlist', JSON.stringify(symbols))
     }
   }, [symbols])
+
+  // Fetch quotes
+  const fetchQuotes = useCallback(async () => {
+    if (symbols.length === 0) return
+    setLoading(true)
+    const newQuotes: Record<string, Quote> = {}
+
+    await Promise.all(
+      symbols.map(async (sym) => {
+        try {
+          const res = await fetch(`/api/market/quote?symbol=${sym}`)
+          const data = await res.json()
+          if (data.price) newQuotes[sym] = data
+        } catch { /* ignore */ }
+      })
+    )
+
+    setQuotes(newQuotes)
+    setLoading(false)
+  }, [symbols])
+
+  useEffect(() => {
+    fetchQuotes()
+    const interval = window.setInterval(fetchQuotes, 60000) // refresh every minute
+    return () => clearInterval(interval)
+  }, [fetchQuotes])
 
   const addSymbol = () => {
     const sym = addInput.trim().toUpperCase()
@@ -40,6 +72,9 @@ export default function Watchlist({ onSymbolClick }: WatchlistProps) {
 
   const removeSymbol = (sym: string) => {
     setSymbols(symbols.filter((s) => s !== sym))
+    const newQuotes = { ...quotes }
+    delete newQuotes[sym]
+    setQuotes(newQuotes)
   }
 
   return (
@@ -78,21 +113,46 @@ export default function Watchlist({ onSymbolClick }: WatchlistProps) {
       )}
 
       <div className="divide-y divide-surface-3/50">
-        {symbols.map((sym) => (
-          <div
-            key={sym}
-            className="px-4 py-2.5 flex items-center justify-between hover:bg-surface-2/50 transition-colors cursor-pointer group"
-            onClick={() => onSymbolClick?.(sym)}
-          >
-            <span className="text-sm font-medium text-text-primary">{sym}</span>
-            <button
-              onClick={(e) => { e.stopPropagation(); removeSymbol(sym) }}
-              className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-loss/10 text-text-muted hover:text-loss transition-all"
+        {symbols.map((sym) => {
+          const q = quotes[sym]
+          const isUp = q ? q.change >= 0 : true
+          return (
+            <div
+              key={sym}
+              className="px-4 py-2.5 flex items-center justify-between hover:bg-surface-2/50 transition-colors cursor-pointer group"
+              onClick={() => onSymbolClick?.(sym)}
             >
-              <X size={12} />
-            </button>
-          </div>
-        ))}
+              <div className="flex items-center gap-2">
+                {isUp ? (
+                  <TrendingUp size={12} className="text-profit" />
+                ) : (
+                  <TrendingDown size={12} className="text-loss" />
+                )}
+                <span className="text-sm font-medium text-text-primary">{sym}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                {q ? (
+                  <>
+                    <span className="text-sm text-text-primary font-medium">{formatCurrency(q.price)}</span>
+                    <span className={cn('text-xs font-medium', getPnlColor(q.change))}>
+                      {formatPercent(q.percent_change)}
+                    </span>
+                  </>
+                ) : loading ? (
+                  <div className="w-16 h-4 bg-surface-3 rounded animate-pulse" />
+                ) : (
+                  <span className="text-xs text-text-muted">--</span>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeSymbol(sym) }}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-loss/10 text-text-muted hover:text-loss transition-all"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {symbols.length === 0 && (
