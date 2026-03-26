@@ -15,15 +15,19 @@ export interface TradingConfig {
 export const LOT_UNIT_FOREX = 100_000
 export const LOT_UNIT_GOLD = 100
 export const LOT_UNIT_SILVER = 5_000
+export const LOT_UNIT_CRYPTO = 1 // 1 lot = 1 coin
 
 // For backwards compatibility
 export const LOT_UNIT = 100_000
+
+const CRYPTO_BASES = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOT', 'LTC', 'BNB', 'DOGE', 'AVAX', 'MATIC', 'LINK', 'UNI', 'SHIB', 'ATOM']
 
 // Get the correct lot unit for a symbol
 export function getLotUnit(symbol: string): number {
   const s = symbol.toUpperCase().replace('/', '')
   if (s.startsWith('XAU')) return LOT_UNIT_GOLD
   if (s.startsWith('XAG')) return LOT_UNIT_SILVER
+  if (CRYPTO_BASES.some(c => s.startsWith(c))) return LOT_UNIT_CRYPTO
   return LOT_UNIT_FOREX
 }
 

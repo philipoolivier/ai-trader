@@ -4,19 +4,40 @@ function getApiKey(): string {
   return process.env.TWELVEDATA_API_KEY || ''
 }
 
-// Known forex/metal bases that TwelveData expects with a slash (e.g. EUR/USD, XAU/USD)
+// Known bases that TwelveData expects with a slash (e.g. EUR/USD, BTC/USD)
 const FOREX_BASES = ['EUR', 'GBP', 'USD', 'JPY', 'AUD', 'NZD', 'CAD', 'CHF', 'XAU', 'XAG']
+const CRYPTO_BASES = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOT', 'LTC', 'BNB', 'DOGE', 'AVAX', 'MATIC', 'LINK', 'UNI', 'SHIB', 'ATOM']
+const QUOTE_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'USDT', 'USDC', 'BTC', 'ETH']
 
-// Normalize symbols: EURUSD → EUR/USD, XAUUSD → XAU/USD
-// Passes through symbols that already have a slash or aren't forex
+// Normalize symbols: BTCUSD → BTC/USD, EURUSD → EUR/USD
 function normalizeSymbol(symbol: string): string {
   const s = symbol.toUpperCase().trim()
   // Already has a slash — leave it
   if (s.includes('/')) return s
-  // 6-char string where first 3 chars are a known forex/metal base
-  if (s.length === 6 && FOREX_BASES.includes(s.slice(0, 3))) {
-    return `${s.slice(0, 3)}/${s.slice(3)}`
+
+  // Try splitting as 3+3 (EURUSD, BTCUSD, XAUUSD)
+  if (s.length === 6) {
+    const base = s.slice(0, 3)
+    const quote = s.slice(3)
+    if (FOREX_BASES.includes(base) || CRYPTO_BASES.includes(base)) {
+      return `${base}/${quote}`
+    }
+    // Check if quote side is known (e.g. USDCHF where USD is base)
+    if (QUOTE_CURRENCIES.includes(quote)) {
+      return `${base}/${quote}`
+    }
   }
+
+  // Try splitting as 3+4 (BTCUSDT) or 4+3 (DOGEBTC) or other lengths
+  if (s.length >= 6 && !s.includes('/')) {
+    // Try common crypto quote suffixes
+    for (const q of ['USDT', 'USDC', 'USD', 'EUR', 'GBP', 'BTC', 'ETH']) {
+      if (s.endsWith(q) && s.length > q.length) {
+        return `${s.slice(0, s.length - q.length)}/${q}`
+      }
+    }
+  }
+
   return s
 }
 
