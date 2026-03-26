@@ -9,7 +9,7 @@ interface TradingViewChartProps {
   studies?: string[]
 }
 
-function TradingViewChartInner({ symbol, interval = 'D', height = 650, studies = [] }: TradingViewChartProps) {
+function TradingViewChartInner({ symbol, interval = '5', height = 650, studies = [] }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
