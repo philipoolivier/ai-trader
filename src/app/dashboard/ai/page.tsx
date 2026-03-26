@@ -36,7 +36,7 @@ export default function AiPage() {
   // Live Chart state
   const [selectedSymbol, setSelectedSymbol] = useState('')
   const [selectedName, setSelectedName] = useState('')
-  const [interval, setInterval] = useState('D')
+  const [interval, setInterval] = useState('5')
   const [indicators, setIndicators] = useState<IndicatorConfig[]>([])
   const [pineScript, setPineScript] = useState('')
   const [tvStudies, setTvStudies] = useState<string[]>([])
@@ -84,6 +84,57 @@ export default function AiPage() {
       parts.push(`// Custom Indicator: ${ind.name}${ind.description ? ` - ${ind.description}` : ''}\n${ind.pine_script}`)
     }
     return parts.length > 0 ? parts.join('\n\n') : undefined
+  }
+
+  // ── Multi-TF Screenshot handler ──
+
+  const handleScreenshotAnalyze = async (images: string[], mimeTypes: string[]) => {
+    if (images.length === 0) return
+    setChatSending(true)
+
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: `Analyze these ${images.length} timeframe screenshot${images.length > 1 ? 's' : ''} of ${selectedSymbol}. Give me a multi-timeframe confluence analysis.`,
+      timestamp: new Date().toISOString(),
+    }
+    setChatMessages((prev) => [...prev, userMsg])
+
+    try {
+      const res = await fetch('/api/ai/analyze-chart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images, mimeTypes }),
+      })
+      const data = await res.json()
+
+      if (res.ok && (data.text || data.analysis)) {
+        if (data.suggestionId) setPendingSuggestionId(data.suggestionId)
+        setChatMessages((prev) => [...prev, {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: data.text || data.analysis?.reasoning || 'Analysis complete.',
+          analysis: data.analysis || null,
+          timestamp: new Date().toISOString(),
+        }])
+        fetchHistory()
+      } else {
+        setChatMessages((prev) => [...prev, {
+          id: `err-${Date.now()}`, role: 'assistant',
+          content: `Error: ${data.error || 'Analysis failed'}`,
+          timestamp: new Date().toISOString(),
+        }])
+      }
+    } catch (err) {
+      const errText = err instanceof Error ? err.message : 'Unknown error'
+      setChatMessages((prev) => [...prev, {
+        id: `err-${Date.now()}`, role: 'assistant',
+        content: `Failed to analyze: ${errText}`,
+        timestamp: new Date().toISOString(),
+      }])
+    } finally {
+      setChatSending(false)
+    }
   }
 
   // ── Live Chart handlers ──
@@ -397,6 +448,7 @@ export default function AiPage() {
                   onAnalyze={handleAnalyzeChart}
                   analyzing={chatSending}
                   tvStudies={tvStudies}
+                  onScreenshotAnalyze={handleScreenshotAnalyze}
                 />
 
                 <AiChat
