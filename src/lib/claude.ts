@@ -45,18 +45,26 @@ Format as: Level | Price | Significance
 Read EVERY indicator visible on the chart. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume profile showing distribution or accumulation?
 
 ### Trade Scenarios
-Give me SPECIFIC trade scenarios with exact entries, stops, and targets:
+Give me SPECIFIC trade scenarios. For EACH scenario specify the trade type and order type:
 
-**SCENARIO A — [Primary Bias]**
-- Trigger: What needs to happen
+**SCALP TRADE — [Quick in/out, 5-30 pip target]**
+- Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
 - Entry: Exact price
-- Stop: Exact price and why there
-- Target 1: Price + why (partial close)
-- Target 2: Price + why
+- Stop: Exact price (tight, 10-15 pips) and why there
+- Target: Exact price (5-30 pips away)
 - R:R ratio
 - Why this works
 
-**SCENARIO B — [Counter-trend / Alternative]**
+**INTRADAY TRADE — [Session trade, 30-100+ pip target]**
+- Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
+- Entry: Exact price
+- Stop: Exact price (20-50 pips) and why there
+- Target 1: Price + why (partial close)
+- Target 2: Price + why (runner)
+- R:R ratio
+- Why this works
+
+**ALTERNATIVE / COUNTER-TREND**
 - Same format
 - Why this is lower/higher conviction
 
@@ -185,18 +193,26 @@ Format as: Level | Price | Significance
 Read EVERY indicator provided. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume showing distribution or accumulation?
 
 ### Trade Scenarios
-Give me SPECIFIC trade scenarios with exact entries, stops, and targets:
+Give me SPECIFIC trade scenarios. For EACH scenario specify the trade type and order type:
 
-**SCENARIO A — [Primary Bias]**
-- Trigger: What needs to happen
+**SCALP TRADE — [Quick in/out, 5-30 pip target]**
+- Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
 - Entry: Exact price
-- Stop: Exact price and why there
-- Target 1: Price + why (partial close)
-- Target 2: Price + why
+- Stop: Exact price (tight, 10-15 pips) and why there
+- Target: Exact price (5-30 pips away)
 - R:R ratio
 - Why this works
 
-**SCENARIO B — [Counter-trend / Alternative]**
+**INTRADAY TRADE — [Session trade, 30-100+ pip target]**
+- Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
+- Entry: Exact price
+- Stop: Exact price (20-50 pips) and why there
+- Target 1: Price + why (partial close)
+- Target 2: Price + why (runner)
+- R:R ratio
+- Why this works
+
+**ALTERNATIVE / COUNTER-TREND**
 - Same format
 - Why this is lower/higher conviction
 

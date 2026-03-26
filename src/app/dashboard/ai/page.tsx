@@ -270,18 +270,33 @@ export default function AiPage() {
           lotSize: 0.01,
           stopLoss: analysis.stop_loss || null,
           takeProfit: analysis.take_profit || null,
-          entryPrice: analysis.entry_price || null,
         }),
       })
       const data = await res.json()
       if (res.ok) {
-        setScreenshotMessage({ type: 'success', text: data.message })
+        // Show success in chat
+        setChatMessages((prev) => [...prev, {
+          id: `trade-${Date.now()}`, role: 'assistant',
+          content: `✅ ${data.message}`,
+          timestamp: new Date().toISOString(),
+        }])
         fetchPortfolio()
         fetchHistory()
       } else {
-        setScreenshotMessage({ type: 'error', text: data.error })
+        setChatMessages((prev) => [...prev, {
+          id: `err-${Date.now()}`, role: 'assistant',
+          content: `Trade failed: ${data.error}`,
+          timestamp: new Date().toISOString(),
+        }])
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setChatMessages((prev) => [...prev, {
+        id: `err-${Date.now()}`, role: 'assistant',
+        content: `Trade failed: ${msg}`,
+        timestamp: new Date().toISOString(),
+      }])
+    }
   }
 
   const handleChatSkip = async (suggestionId: string) => {
