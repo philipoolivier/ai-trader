@@ -190,7 +190,7 @@ function TradeCardsPanel({
           <div key={i} className={cn(
             'rounded-lg border p-3 space-y-2 transition-all',
             isActed ? 'border-surface-3 bg-surface-2/50 opacity-60' :
-            isBuy ? 'border-profit/20 bg-profit/5' : 'border-loss/20 bg-loss/5'
+            'border-surface-3 bg-surface-1'
           )}>
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -242,8 +242,8 @@ function TradeCardsPanel({
               <button
                 onClick={() => handleTake(trade, i)}
                 className={cn(
-                  'w-full py-1.5 text-xs font-semibold rounded transition-colors text-white',
-                  isBuy ? 'bg-profit hover:bg-green-600' : 'bg-loss hover:bg-red-600'
+                  'w-full py-1.5 text-xs font-semibold rounded transition-colors',
+                  isBuy ? 'bg-profit/15 text-profit hover:bg-profit/25 border border-profit/20' : 'bg-loss/15 text-loss hover:bg-loss/25 border border-loss/20'
                 )}
               >
                 Take {label}
