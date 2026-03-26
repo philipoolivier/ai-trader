@@ -90,14 +90,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchPortfolio()
-    // Auto-refresh every 30 seconds + check pending orders
-    const interval = setInterval(() => {
-      fetchPortfolio()
-      fetch('/api/orders', { method: 'POST' }).catch(() => {})
-    }, 30000)
-    // Check orders on load too
     fetch('/api/orders', { method: 'POST' }).catch(() => {})
-    return () => clearInterval(interval)
+    // Price/P&L refresh every 5 seconds
+    const priceInterval = setInterval(fetchPortfolio, 5000)
+    // Pending order check every 15 seconds
+    const orderInterval = setInterval(() => {
+      fetch('/api/orders', { method: 'POST' }).catch(() => {})
+    }, 15000)
+    return () => { clearInterval(priceInterval); clearInterval(orderInterval) }
   }, [fetchPortfolio])
 
   const positionsValue = positionsWithQuotes.reduce((sum, p) => sum + p.market_value, 0)
