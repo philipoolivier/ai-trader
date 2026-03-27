@@ -79,6 +79,20 @@ export async function POST() {
       }
 
       if (shouldTrigger) {
+        // Mark as triggered FIRST to prevent race conditions (double triggers)
+        const { data: updated } = await supabase
+          .from('pending_orders')
+          .update({ status: 'triggering', updated_at: new Date().toISOString() })
+          .eq('id', order.id)
+          .eq('status', 'pending') // Only if still pending (atomic check)
+          .select('id')
+          .single()
+
+        if (!updated) {
+          // Another process already triggered this order
+          continue
+        }
+
         try {
           const lotSize = parseFloat(order.lot_size) || 0.01
           const sl = order.stop_loss ? parseFloat(order.stop_loss) : null
@@ -107,6 +121,12 @@ export async function POST() {
           triggered++
           results.push(result.message)
         } catch (err) {
+          // Revert status back to pending so it can be retried
+          await supabase
+            .from('pending_orders')
+            .update({ status: 'pending', updated_at: new Date().toISOString() })
+            .eq('id', order.id)
+
           const msg = err instanceof Error ? err.message : String(err)
           console.error(`Failed to trigger order ${order.id} (${order.symbol} ${order.order_type}):`, msg)
           errors.push(`${order.symbol} ${order.order_type}: ${msg}`)
