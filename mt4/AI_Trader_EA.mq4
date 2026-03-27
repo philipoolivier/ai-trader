@@ -185,7 +185,7 @@ void SyncClosedTrades()
    string resultHeaders;
 
    StringToCharArray(body, postData, 0, StringLen(body));
-   int res = WebRequest("POST", url, headers, 5000, postData, result, resultHeaders);
+   int res = WebRequest("POST", url, headers, 15000, postData, result, resultHeaders);
 
    if(res == 200)
       Print("Synced: ", closedCount, " closed, ", cancelledCount, " cancelled");
@@ -238,6 +238,15 @@ void ProcessOneSignal(string json)
    if(IsProcessed(id)) return;
    if(symbol == "" || id == "") return;
    if(lots <= 0 || lots > MaxLotSize) lots = MathMin(0.01, MaxLotSize);
+
+   // Validate lot size against broker's min/max/step
+   double minLot = MarketInfo(symbol, MODE_MINLOT);
+   double maxLot = MarketInfo(symbol, MODE_MAXLOT);
+   double lotStep = MarketInfo(symbol, MODE_LOTSTEP);
+   if(minLot > 0 && lots < minLot) lots = minLot;
+   if(maxLot > 0 && lots > maxLot) lots = maxLot;
+   if(lotStep > 0) lots = MathRound(lots / lotStep) * lotStep;
+   lots = NormalizeDouble(lots, 2);
 
    // Check if symbol exists
    if(MarketInfo(symbol, MODE_BID) == 0)
@@ -324,6 +333,10 @@ void ProcessOneSignal(string json)
          " lots=", lots, " price=", price, " sl=", sl, " tp=", tp,
          " stopLevel=", stopLevel, " point=", point);
 
+   Print("Broker info for ", symbol, ": minLot=", minLot, " maxLot=", maxLot,
+         " lotStep=", lotStep, " stopLevel=", stopLevel, " point=", point,
+         " spread=", MarketInfo(symbol, MODE_SPREAD));
+
    int ticket = OrderSend(symbol, cmd, lots, price, Slippage, sl, tp,
                            "AI Trader: " + id, MagicNumber, 0,
                            cmd <= OP_SELL ? (side == "buy" ? clrGreen : clrRed) : clrGold);
@@ -337,6 +350,30 @@ void ProcessOneSignal(string json)
    {
       int err = GetLastError();
       Print("Order failed! Error: ", err, " - ", ErrorDescription(err));
+
+      // If invalid stops, try placing without SL/TP then modify
+      if(err == 130 && (sl > 0 || tp > 0))
+      {
+         Print("Retrying without SL/TP...");
+         ticket = OrderSend(symbol, cmd, lots, price, Slippage, 0, 0,
+                             "AI Trader: " + id, MagicNumber, 0,
+                             cmd <= OP_SELL ? (side == "buy" ? clrGreen : clrRed) : clrGold);
+         if(ticket > 0)
+         {
+            Print("Order placed without SL/TP. Ticket: ", ticket, ". Modifying...");
+            bool modified = OrderModify(ticket, price, sl, tp, 0,
+                                        cmd <= OP_SELL ? (side == "buy" ? clrGreen : clrRed) : clrGold);
+            if(modified)
+               Print("SL/TP added successfully");
+            else
+               Print("SL/TP modify failed: ", GetLastError(), " — order placed without stops");
+            ConfirmSignal(id, ticket, "executed");
+         }
+         else
+         {
+            Print("Retry also failed: ", GetLastError());
+         }
+      }
    }
 
    MarkProcessed(id);
