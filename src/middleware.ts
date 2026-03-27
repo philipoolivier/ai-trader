@@ -8,6 +8,7 @@ export function middleware(request: NextRequest) {
   if (
     pathname === '/login' ||
     pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/mt4') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname === '/icon.svg'
