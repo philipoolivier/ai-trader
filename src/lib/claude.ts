@@ -45,33 +45,41 @@ Format as: Level | Price | Significance
 Read EVERY indicator visible on the chart. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume profile showing distribution or accumulation?
 
 ### Trade Scenarios
-Give me SPECIFIC trade scenarios. This trader is primarily a SCALPER but also takes intraday swings when the setup is clean.
+This trader is a SCALPER on a small account ($500). Trade sizing must be TIGHT.
 
-IMPORTANT: Do NOT use fixed pip values for SL/TP. Every instrument has different volatility and structure. Instead:
-- Place SL based on STRUCTURE: behind the nearest swing high/low, order block, liquidity zone, or invalidation level. The SL should be where the trade idea is WRONG, not an arbitrary distance.
-- Place TP based on STRUCTURE: the next key level, liquidity pool, session high/low, or where price is likely to react. Use ATR, recent range, and visible structure to gauge realistic targets.
-- Adapt to the instrument. Gold (XAU/USD) moves $20-50/day. EUR/USD moves 50-80 pips/day. Each needs different placement.
+CRITICAL SIZING RULES:
+- SL must be TIGHT and placed at the nearest structural invalidation — NOT wide swing levels
+- For scalps: SL should be 5-15 pips on forex, $8-20 on gold, $200-500 on BTC
+- For intraday: SL can be wider but still structural, not arbitrary
+- TP should be at the NEAREST reaction level for scalps (quick in/out)
+- The trader uses % risk position sizing, so tight SL = bigger lot size = same risk
+- NEVER suggest SL that would risk more than 2% of a $500 account at 0.01 lots
+- Prefer multiple small scalps over one big swing
+
+IMPORTANT: Place SL/TP based on STRUCTURE, not fixed distances:
+- SL behind the nearest micro structure: wick high/low, 5m order block, FVG edge, micro swing
+- TP at the next liquidity pocket, session level, or micro structure
+- Adapt to the instrument's typical range
 
 For EACH scenario:
 
 **SCALP — [Description]**
 - Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
-- Entry: Exact price and why here (e.g., "break of London high", "retest of order block")
-- Stop: Exact price — placed behind [specific structure]. Why the trade is invalid if this level breaks.
-- Target: Exact price — the next [specific level]. Why price should reach here.
-- R:R ratio
-- Confluence: What makes this high probability (e.g., "liquidity sweep + FVG fill + session open alignment")
+- Entry: Exact price and why here
+- Stop: Exact price — TIGHT, behind nearest micro structure
+- Target: Exact price — next immediate level (quick profit)
+- R:R ratio (aim for minimum 1.5:1)
+- Confluence: What makes this high probability
 
-**INTRADAY SWING — [Description]** (if setup exists)
-- Same format but wider structural targets
-- Partial close level + runner target
+**INTRADAY — [Description]** (only if clean setup)
+- Same format, slightly wider but still structural
+- Partial close + runner target
 
-**COUNTER-TREND / ALTERNATIVE**
-- Same format
-- Why this is lower conviction and what would activate it
+**COUNTER-TREND** (if applicable)
+- Same format, lower conviction
 
 ### Overall Bias
-What's your lean? What invalidates it? What would flip you the other way?
+What's your lean? What invalidates it?
 
 ### Risk Events
 What upcoming events could move this? When should the trader be flat/reduced?
@@ -205,33 +213,41 @@ Format as: Level | Price | Significance
 Read EVERY indicator provided. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume showing distribution or accumulation?
 
 ### Trade Scenarios
-Give me SPECIFIC trade scenarios. This trader is primarily a SCALPER but also takes intraday swings when the setup is clean.
+This trader is a SCALPER on a small account ($500). Trade sizing must be TIGHT.
 
-IMPORTANT: Do NOT use fixed pip values for SL/TP. Every instrument has different volatility and structure. Instead:
-- Place SL based on STRUCTURE: behind the nearest swing high/low, order block, liquidity zone, or invalidation level. The SL should be where the trade idea is WRONG, not an arbitrary distance.
-- Place TP based on STRUCTURE: the next key level, liquidity pool, session high/low, or where price is likely to react. Use ATR, recent range, and visible structure to gauge realistic targets.
-- Adapt to the instrument. Gold (XAU/USD) moves $20-50/day. EUR/USD moves 50-80 pips/day. Each needs different placement.
+CRITICAL SIZING RULES:
+- SL must be TIGHT and placed at the nearest structural invalidation — NOT wide swing levels
+- For scalps: SL should be 5-15 pips on forex, $8-20 on gold, $200-500 on BTC
+- For intraday: SL can be wider but still structural, not arbitrary
+- TP should be at the NEAREST reaction level for scalps (quick in/out)
+- The trader uses % risk position sizing, so tight SL = bigger lot size = same risk
+- NEVER suggest SL that would risk more than 2% of a $500 account at 0.01 lots
+- Prefer multiple small scalps over one big swing
+
+IMPORTANT: Place SL/TP based on STRUCTURE, not fixed distances:
+- SL behind the nearest micro structure: wick high/low, 5m order block, FVG edge, micro swing
+- TP at the next liquidity pocket, session level, or micro structure
+- Adapt to the instrument's typical range
 
 For EACH scenario:
 
 **SCALP — [Description]**
 - Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
-- Entry: Exact price and why here (e.g., "break of London high", "retest of order block")
-- Stop: Exact price — placed behind [specific structure]. Why the trade is invalid if this level breaks.
-- Target: Exact price — the next [specific level]. Why price should reach here.
-- R:R ratio
-- Confluence: What makes this high probability (e.g., "liquidity sweep + FVG fill + session open alignment")
+- Entry: Exact price and why here
+- Stop: Exact price — TIGHT, behind nearest micro structure
+- Target: Exact price — next immediate level (quick profit)
+- R:R ratio (aim for minimum 1.5:1)
+- Confluence: What makes this high probability
 
-**INTRADAY SWING — [Description]** (if setup exists)
-- Same format but wider structural targets
-- Partial close level + runner target
+**INTRADAY — [Description]** (only if clean setup)
+- Same format, slightly wider but still structural
+- Partial close + runner target
 
-**COUNTER-TREND / ALTERNATIVE**
-- Same format
-- Why this is lower conviction and what would activate it
+**COUNTER-TREND** (if applicable)
+- Same format, lower conviction
 
 ### Overall Bias
-What's your lean? What invalidates it? What would flip you the other way?
+What's your lean? What invalidates it?
 
 ### Risk Events
 What upcoming events could move this? When should the trader be flat/reduced?
