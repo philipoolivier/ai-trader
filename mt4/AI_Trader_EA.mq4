@@ -279,6 +279,10 @@ void ProcessOneSignal(string json)
    }
 
    int digits = (int)MarketInfo(symbol, MODE_DIGITS);
+   double point = MarketInfo(symbol, MODE_POINT);
+   double stopLevel = MarketInfo(symbol, MODE_STOPLEVEL) * point;
+   double freezeLevel = MarketInfo(symbol, MODE_FREEZELEVEL) * point;
+
    entry = NormalizeDouble(entry, digits);
    sl    = NormalizeDouble(sl, digits);
    tp    = NormalizeDouble(tp, digits);
@@ -287,8 +291,38 @@ void ProcessOneSignal(string json)
    if(cmd == OP_BUY)  price = MarketInfo(symbol, MODE_ASK);
    if(cmd == OP_SELL) price = MarketInfo(symbol, MODE_BID);
 
+   // Validate stops are far enough from price
+   double minDist = MathMax(stopLevel, freezeLevel) + point;
+   if(minDist > 0)
+   {
+      double refPrice = (cmd == OP_BUY || cmd == OP_BUYSTOP || cmd == OP_BUYLIMIT) ? price : price;
+      if(cmd <= OP_SELL) refPrice = price; // Market orders use current price
+      else refPrice = entry; // Pending orders use entry price
+
+      if(sl > 0 && MathAbs(refPrice - sl) < minDist)
+      {
+         // Adjust SL to minimum distance
+         double oldSl = sl;
+         if(cmd == OP_BUY || cmd == OP_BUYLIMIT || cmd == OP_BUYSTOP)
+            sl = NormalizeDouble(refPrice - minDist, digits);
+         else
+            sl = NormalizeDouble(refPrice + minDist, digits);
+         Print("Adjusted SL from ", oldSl, " to ", sl, " (min distance: ", minDist, ")");
+      }
+      if(tp > 0 && MathAbs(refPrice - tp) < minDist)
+      {
+         double oldTp = tp;
+         if(cmd == OP_BUY || cmd == OP_BUYLIMIT || cmd == OP_BUYSTOP)
+            tp = NormalizeDouble(refPrice + minDist, digits);
+         else
+            tp = NormalizeDouble(refPrice - minDist, digits);
+         Print("Adjusted TP from ", oldTp, " to ", tp, " (min distance: ", minDist, ")");
+      }
+   }
+
    Print("Placing: ", symbol, " ", EnumToString((ENUM_ORDER_TYPE)cmd),
-         " lots=", lots, " price=", price, " sl=", sl, " tp=", tp);
+         " lots=", lots, " price=", price, " sl=", sl, " tp=", tp,
+         " stopLevel=", stopLevel, " point=", point);
 
    int ticket = OrderSend(symbol, cmd, lots, price, Slippage, sl, tp,
                            "AI Trader: " + id, MagicNumber, 0,
