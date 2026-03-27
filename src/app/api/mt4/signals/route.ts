@@ -1,36 +1,41 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { executeTrade } from '@/lib/trade'
+
+// IC Markets symbol mapping — adjust if your broker uses different names
+const MT4_SYMBOL_MAP: Record<string, string> = {
+  // IC Markets uses standard names for forex and metals
+  // Add overrides here if needed, e.g.:
+  // 'BTCUSD': 'BTCUSD.a',
+}
+
+function mapSymbolToMT4(symbol: string): string {
+  const clean = symbol.replace('/', '').toUpperCase()
+  return MT4_SYMBOL_MAP[clean] || clean
+}
 
 // GET: EA polls for unexecuted signals
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const apiKey = searchParams.get('key')
 
-  // Simple API key auth for EA
   if (apiKey !== process.env.AUTH_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    // Get pending orders that haven't been sent to MT4
     const { data: pending } = await supabase
       .from('pending_orders')
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
 
-    // Get open positions (for position sync)
-    const { data: positions } = await supabase
-      .from('positions')
-      .select('*')
-      .gt('quantity', 0)
-
-    // Format signals for MT4 EA
     const signals = (pending || []).map(order => ({
       id: order.id,
-      symbol: order.symbol.replace('/', ''), // MT4 uses EURUSD not EUR/USD
+      symbol: mapSymbolToMT4(order.symbol),
+      originalSymbol: order.symbol, // Keep original for portfolio tracking
       side: order.side,
-      type: order.order_type, // buy_stop, sell_limit, etc.
+      type: order.order_type,
       entry: parseFloat(order.entry_price),
       sl: order.stop_loss ? parseFloat(order.stop_loss) : 0,
       tp: order.take_profit ? parseFloat(order.take_profit) : 0,
@@ -38,16 +43,8 @@ export async function GET(request: Request) {
       created: order.created_at,
     }))
 
-    const openPositions = (positions || []).map(pos => ({
-      symbol: pos.symbol.replace('/', ''),
-      side: pos.side,
-      quantity: parseFloat(pos.quantity),
-      avg_price: parseFloat(pos.avg_price),
-    }))
-
     return NextResponse.json({
       signals,
-      positions: openPositions,
       timestamp: new Date().toISOString(),
     })
   } catch (error: unknown) {
@@ -56,10 +53,10 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: EA confirms it executed a signal
+// POST: EA confirms it executed a signal — also creates position in portfolio
 export async function POST(request: Request) {
   try {
-    const { key, id, ticket, action } = await request.json()
+    const { key, id, ticket, action, executedPrice } = await request.json()
 
     if (key !== process.env.AUTH_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -69,26 +66,64 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Signal ID required' }, { status: 400 })
     }
 
-    if (action === 'executed') {
-      // Mark pending order as triggered by MT4
-      await supabase
-        .from('pending_orders')
-        .update({
-          status: 'triggered',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id)
+    // Get the pending order details
+    const { data: order } = await supabase
+      .from('pending_orders')
+      .select('*')
+      .eq('id', id)
+      .single()
 
-      return NextResponse.json({ success: true, message: `Signal ${id} marked as executed (MT4 ticket: ${ticket})` })
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    if (action === 'executed') {
+      // Create position in our portfolio
+      try {
+        const result = await executeTrade({
+          symbol: order.symbol,
+          side: order.side,
+          lotSize: parseFloat(order.lot_size),
+          stopLoss: order.stop_loss ? parseFloat(order.stop_loss) : null,
+          takeProfit: order.take_profit ? parseFloat(order.take_profit) : null,
+          notes: `MT4 executed: ${order.order_type.replace('_', ' ')} ticket #${ticket} at ${executedPrice || order.entry_price}`,
+        })
+
+        // Mark pending order as triggered
+        await supabase
+          .from('pending_orders')
+          .update({
+            status: 'triggered',
+            triggered_trade_id: (result.trade as Record<string, unknown>).id as string,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id)
+
+        return NextResponse.json({
+          success: true,
+          message: `Signal ${id} executed on MT4 (ticket: ${ticket}) and added to portfolio`,
+          trade: result.trade,
+        })
+      } catch (err) {
+        // Still mark as triggered even if portfolio update fails
+        await supabase
+          .from('pending_orders')
+          .update({ status: 'triggered', updated_at: new Date().toISOString() })
+          .eq('id', id)
+
+        const msg = err instanceof Error ? err.message : String(err)
+        return NextResponse.json({
+          success: true,
+          message: `MT4 executed but portfolio update failed: ${msg}`,
+          warning: msg,
+        })
+      }
     }
 
     if (action === 'cancelled') {
       await supabase
         .from('pending_orders')
-        .update({
-          status: 'cancelled',
-          updated_at: new Date().toISOString(),
-        })
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
         .eq('id', id)
 
       return NextResponse.json({ success: true, message: `Signal ${id} cancelled` })
