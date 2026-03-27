@@ -314,11 +314,15 @@ export default function AiPage() {
       const riskAmount = accountBalance * (riskPercent / 100)
       const slDistance = Math.abs(analysis.entry_price - analysis.stop_loss)
       if (slDistance > 0) {
-        // Determine contract size based on symbol
         const sym = (analysis.symbol || selectedSymbol).toUpperCase().replace('/', '')
-        const contractSize = sym.startsWith('XAU') ? 100 : sym.startsWith('XAG') ? 5000 : 100000
+        const CRYPTO = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOT', 'LTC', 'BNB', 'DOGE', 'AVAX']
+        const contractSize = sym.startsWith('XAU') ? 100
+          : sym.startsWith('XAG') ? 5000
+          : CRYPTO.some(c => sym.startsWith(c)) ? 1
+          : 100000
         lots = Math.round((riskAmount / (slDistance * contractSize)) * 100) / 100
         lots = Math.max(lots, 0.01) // Minimum 0.01
+        lots = Math.min(lots, 10) // Cap at 10 lots
       }
     }
 
@@ -339,10 +343,10 @@ export default function AiPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        // Show success in chat
+        const modeInfo = riskMode === 'percent' ? ` (${riskPercent}% risk = ${lots} lots)` : ` (${lots} lots)`
         setChatMessages((prev) => [...prev, {
           id: `trade-${Date.now()}`, role: 'assistant',
-          content: `✅ ${data.message}`,
+          content: `Trade placed${modeInfo}: ${data.message}`,
           timestamp: new Date().toISOString(),
         }])
         fetchPortfolio()
