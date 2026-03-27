@@ -339,6 +339,7 @@ export default function AiPage() {
           stopLoss: analysis.stop_loss || null,
           takeProfit: analysis.take_profit || null,
           label: tradeLabel,
+          orderType: (analysis as unknown as Record<string, unknown>).order_type || 'market',
         }),
       })
       const data = await res.json()

@@ -5,15 +5,16 @@ import { getPrice } from '@/lib/twelvedata'
 
 export async function POST(request: Request) {
   try {
-    const { suggestionId, symbol, side, lotSize, entryPrice, stopLoss, takeProfit, label } = await request.json()
+    const { suggestionId, symbol, side, lotSize, entryPrice, stopLoss, takeProfit, label, orderType } = await request.json()
     const lots = lotSize || 0.01
     const validSuggestionId = suggestionId && typeof suggestionId === 'string' && suggestionId.length > 10 ? suggestionId : null
+    const type = (orderType || 'market').toLowerCase()
 
     if (!symbol || !side) {
       return NextResponse.json({ error: 'Symbol and side are required' }, { status: 400 })
     }
 
-    // Try to find suggestion, but don't fail if not found
+    // Try to find suggestion
     let suggestion = null
     if (validSuggestionId) {
       const { data } = await supabase
@@ -24,74 +25,49 @@ export async function POST(request: Request) {
       suggestion = data
     }
 
-    // Get current price
-    const currentPrice = await getPrice(symbol)
-    const aiEntry = entryPrice ? parseFloat(entryPrice) : (suggestion?.entry_price ? parseFloat(suggestion.entry_price) : null)
+    // If order type is explicitly a stop or limit, create pending order
+    const isPendingType = ['buy_stop', 'buy_limit', 'sell_stop', 'sell_limit'].includes(type)
 
-    // If there's an entry price and it's not the current price, create pending order
-    // For forex/metals, any difference matters — don't use % threshold
-    if (aiEntry && Math.abs(aiEntry - currentPrice) > 0.00001) {
-      // Determine order type based on side and entry vs current
-      let orderType: string
-      if (side === 'buy') {
-        orderType = aiEntry > currentPrice ? 'buy_stop' : 'buy_limit'
-      } else {
-        orderType = aiEntry < currentPrice ? 'sell_stop' : 'sell_limit'
-      }
-
-      // Check if this would trigger immediately (entry already hit)
-      const wouldTriggerNow =
-        (orderType === 'buy_stop' && currentPrice >= aiEntry) ||
-        (orderType === 'buy_limit' && currentPrice <= aiEntry) ||
-        (orderType === 'sell_stop' && currentPrice <= aiEntry) ||
-        (orderType === 'sell_limit' && currentPrice >= aiEntry)
-
-      if (!wouldTriggerNow) {
-        try {
-          const { data: order, error: orderError } = await supabase
-            .from('pending_orders')
-            .insert({
-              symbol: symbol.toUpperCase(),
-              side,
-              lot_size: lots,
-              entry_price: aiEntry,
-              stop_loss: stopLoss || suggestion?.stop_loss || null,
-              take_profit: takeProfit || suggestion?.take_profit || null,
-              order_type: orderType,
-              status: 'pending',
-              ai_suggestion_id: validSuggestionId,
-            })
-            .select()
-            .single()
-
-          if (orderError) throw orderError
-
-          // Mark suggestion as taken
-          if (suggestion && suggestion.status === 'pending') {
-            await supabase.from('ai_suggestions').update({ status: 'taken' }).eq('id', validSuggestionId)
-          }
-
-          const slText = stopLoss ? ` | SL: $${parseFloat(stopLoss).toFixed(5)}` : ''
-          const tpText = takeProfit ? ` | TP: $${parseFloat(takeProfit).toFixed(5)}` : ''
-
-          return NextResponse.json({
-            trade: order,
-            message: `${orderType.replace('_', ' ').toUpperCase()} placed: ${lots} lots ${symbol.toUpperCase()} @ $${aiEntry.toFixed(5)}${slText}${tpText}`,
-            orderType,
+    if (isPendingType && entryPrice) {
+      try {
+        const { data: order, error: orderError } = await supabase
+          .from('pending_orders')
+          .insert({
+            symbol: symbol.toUpperCase(),
+            side,
+            lot_size: lots,
+            entry_price: parseFloat(entryPrice),
+            stop_loss: stopLoss ? parseFloat(stopLoss) : null,
+            take_profit: takeProfit ? parseFloat(takeProfit) : null,
+            order_type: type,
+            status: 'pending',
+            ai_suggestion_id: validSuggestionId,
           })
-        } catch (pendingErr) {
-          console.error('Pending order insert failed:', pendingErr)
-          // Fall through to market order
+          .select()
+          .single()
+
+        if (orderError) throw orderError
+
+        if (suggestion && suggestion.status === 'pending') {
+          await supabase.from('ai_suggestions').update({ status: 'taken' }).eq('id', validSuggestionId)
         }
+
+        return NextResponse.json({
+          trade: order,
+          message: `${type.replace('_', ' ').toUpperCase()}: ${lots} lots ${symbol.toUpperCase()} @ ${entryPrice}`,
+          orderType: type,
+        })
+      } catch (pendingErr) {
+        console.error('Pending order insert failed:', pendingErr)
+        // Fall through to market order
       }
-      // If would trigger now, fall through to market order
     }
 
-    // Execute market order
+    // Execute market order immediately
     const tradeNotes = label
       ? `AI: ${label}${suggestion ? ` (confidence: ${suggestion.confidence}/10)` : ''}`
       : suggestion
-        ? `AI suggestion (confidence: ${suggestion.confidence}/10) - ${suggestion.reasoning?.slice(0, 100)}`
+        ? `AI suggestion (confidence: ${suggestion.confidence}/10)`
         : 'AI trade'
 
     const result = await executeTrade({
@@ -104,7 +80,6 @@ export async function POST(request: Request) {
       aiSuggestionId: validSuggestionId || undefined,
     })
 
-    // Mark suggestion as taken
     if (suggestion && suggestion.status === 'pending' && validSuggestionId) {
       await supabase
         .from('ai_suggestions')

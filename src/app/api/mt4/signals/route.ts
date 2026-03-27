@@ -24,16 +24,34 @@ export async function GET(request: Request) {
   }
 
   try {
+    // Get pending orders (stop/limit)
     const { data: pending } = await supabase
       .from('pending_orders')
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
 
-    const signals = (pending || []).map(order => ({
+    // Get recent trades not yet sent to MT4 (market orders)
+    const { data: recentTrades } = await supabase
+      .from('trades')
+      .select('*')
+      .is('ai_suggestion_id', null) // Only non-suggestion trades OR
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    // Also get trades with notes containing 'AI:' that haven't been marked as mt4_sent
+    const { data: aiTrades } = await supabase
+      .from('trades')
+      .select('*')
+      .like('notes', 'AI:%')
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    // Pending order signals
+    const pendingSignals = (pending || []).map(order => ({
       id: order.id,
+      source: 'pending_order',
       symbol: mapSymbolToMT4(order.symbol),
-      originalSymbol: order.symbol, // Keep original for portfolio tracking
       side: order.side,
       type: order.order_type,
       entry: parseFloat(order.entry_price),
@@ -44,7 +62,7 @@ export async function GET(request: Request) {
     }))
 
     return NextResponse.json({
-      signals,
+      signals: pendingSignals,
       timestamp: new Date().toISOString(),
     })
   } catch (error: unknown) {
