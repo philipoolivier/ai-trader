@@ -29,7 +29,8 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
 
   const lotSize = Math.max(params.lotSize, 0.01) // Minimum 0.01 lots
   const lotUnit = getLotUnit(symbol)
-  const units = Math.round(lotSize * lotUnit)
+  // Don't round for crypto (lot unit = 1, quantities are fractional)
+  const units = lotUnit === 1 ? lotSize * lotUnit : Math.round(lotSize * lotUnit)
 
   if (!symbol || !side || lotSize <= 0) {
     throw new Error('Invalid trade parameters')
@@ -66,7 +67,10 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
   let pnl: number | null = null
   let message = ''
 
-  const hasPosition = existingPosition && existingPosition.quantity > 0
+  // Parse Supabase DECIMAL strings to numbers
+  const posQty: number = existingPosition ? parseFloat(existingPosition.quantity) || 0 : 0
+  const posAvgPrice: number = existingPosition ? parseFloat(existingPosition.avg_price) || 0 : 0
+  const hasPosition = existingPosition && posQty > 0
 
   if (hasPosition) {
     const positionSide = existingPosition.side
@@ -76,19 +80,19 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
 
     if (isClosing) {
       // Closing (fully or partially) an existing position
-      const closeUnits = Math.min(units, existingPosition.quantity)
+      const closeUnits = Math.min(units, posQty)
       const closeLots = closeUnits / lotUnit
-      const remainingUnits = existingPosition.quantity - closeUnits
+      const remainingUnits = posQty - closeUnits
 
       // Calculate P&L
       if (positionSide === 'long') {
-        pnl = (price - existingPosition.avg_price) * closeUnits
+        pnl = (price - posAvgPrice) * closeUnits
       } else {
-        pnl = (existingPosition.avg_price - price) * closeUnits
+        pnl = (posAvgPrice - price) * closeUnits
       }
 
       // Return margin + P&L to cash
-      const marginReturned = (closeUnits * existingPosition.avg_price) / leverage
+      const marginReturned = (closeUnits * posAvgPrice) / leverage
       await supabase
         .from('portfolios')
         .update({ cash_balance: portfolio.cash_balance + marginReturned + pnl })
@@ -103,8 +107,8 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
       message = `Closed ${closeLots} lots of ${symbol.toUpperCase()} ${positionSide} at $${price.toFixed(2)} (P&L: ${pnlStr})`
 
       // If leftover, flip position
-      if (units > existingPosition.quantity) {
-        const flipUnits = units - existingPosition.quantity
+      if (units > posQty) {
+        const flipUnits = units - posQty
         const flipLots = flipUnits / lotUnit
         const flipMargin = (flipUnits * price) / leverage
         const flipSide = side === 'buy' ? 'long' : 'short'
@@ -139,9 +143,9 @@ export async function executeTrade(params: TradeParams): Promise<TradeResult> {
         .update({ cash_balance: portfolio.cash_balance - marginRequired })
         .eq('id', portfolio.id)
 
-      const newUnits = existingPosition.quantity + units
+      const newUnits = posQty + units
       const newAvg =
-        (existingPosition.avg_price * existingPosition.quantity + price * units) / newUnits
+        (posAvgPrice * posQty + price * units) / newUnits
 
       await supabase
         .from('positions')

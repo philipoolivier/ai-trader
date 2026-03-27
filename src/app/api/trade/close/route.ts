@@ -36,19 +36,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Portfolio not found' }, { status: 404 })
     }
 
-    // Get current price
+    // Get current price — parse DECIMAL strings from Supabase
     const price = await getPrice(position.symbol)
+    const qty = parseFloat(position.quantity) || 0
+    const avgPrice = parseFloat(position.avg_price) || 0
 
     // Calculate P&L
     let pnl: number
     if (position.side === 'long') {
-      pnl = (price - position.avg_price) * position.quantity
+      pnl = (price - avgPrice) * qty
     } else {
-      pnl = (position.avg_price - price) * position.quantity
+      pnl = (avgPrice - price) * qty
     }
 
     // Return margin + P&L to cash
-    const marginReturned = (position.quantity * position.avg_price) / DEFAULT_LEVERAGE
+    const marginReturned = (qty * avgPrice) / DEFAULT_LEVERAGE
     await supabase
       .from('portfolios')
       .update({ cash_balance: portfolio.cash_balance + marginReturned + pnl })
@@ -63,7 +65,7 @@ export async function POST(request: Request) {
     // Record closing trade
     const closeSide = position.side === 'long' ? 'sell' : 'buy'
     const lotUnit = getLotUnit(position.symbol)
-    const lots = position.quantity / lotUnit
+    const lots = qty / lotUnit
 
     const { data: trade, error: tradeError } = await supabase
       .from('trades')
@@ -71,9 +73,9 @@ export async function POST(request: Request) {
         portfolio_id: portfolio.id,
         symbol: position.symbol,
         side: closeSide,
-        quantity: position.quantity,
+        quantity: qty,
         price,
-        total: price * position.quantity,
+        total: price * qty,
         pnl,
         notes: `Closed ${lots.toFixed(2)} lots ${position.side} position`,
         status: 'filled',
