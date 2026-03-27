@@ -38,9 +38,16 @@ export default function PendingOrdersPanel({ onOrderTriggered }: PendingOrdersPa
   const fetchOrders = useCallback(async () => {
     try {
       const res = await fetch('/api/orders')
+      if (!res.ok) {
+        console.error('Pending orders fetch failed:', res.status)
+        return
+      }
       const data = await res.json()
       if (Array.isArray(data)) setOrders(data)
-    } catch { /* ignore */ }
+      else if (data.error) console.error('Pending orders error:', data.error)
+    } catch (err) {
+      console.error('Pending orders fetch error:', err)
+    }
     finally { setLoading(false) }
   }, [])
 

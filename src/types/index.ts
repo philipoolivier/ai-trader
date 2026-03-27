@@ -137,6 +137,8 @@ export interface ChartAnalysisResponse {
   indicators_detected: string[]
   risk_reward_ratio: number | null
   follow_up_suggestion?: string
+  label?: string
+  order_type?: string
 }
 
 export interface ChatMessage {

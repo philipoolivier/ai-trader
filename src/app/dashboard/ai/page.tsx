@@ -305,7 +305,7 @@ export default function AiPage() {
   }
 
   const handleChatTakeTrade = async (analysis: ChartAnalysisResponse, suggestionId: string) => {
-    const tradeLabel = (analysis as unknown as Record<string, unknown>).label as string || undefined
+    const tradeLabel = analysis.label || undefined
 
     // Calculate lot size based on mode
     let lots = tradeLotSize
@@ -339,15 +339,16 @@ export default function AiPage() {
           stopLoss: analysis.stop_loss || null,
           takeProfit: analysis.take_profit || null,
           label: tradeLabel,
-          orderType: (analysis as unknown as Record<string, unknown>).order_type || 'market',
+          orderType: analysis.order_type || 'market',
         }),
       })
       const data = await res.json()
       if (res.ok) {
         const modeInfo = riskMode === 'percent' ? ` (${riskPercent}% risk = ${lots} lots)` : ` (${lots} lots)`
+        const orderInfo = data.orderType ? ` [${data.orderType.replace('_', ' ').toUpperCase()}]` : ' [MARKET]'
         setChatMessages((prev) => [...prev, {
           id: `trade-${Date.now()}`, role: 'assistant',
-          content: `Trade placed${modeInfo}: ${data.message}`,
+          content: `${orderInfo} Trade placed${modeInfo}: ${data.message}`,
           timestamp: new Date().toISOString(),
         }])
         fetchPortfolio()
