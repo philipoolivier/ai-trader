@@ -1,26 +1,26 @@
 //+------------------------------------------------------------------+
 //|                                              AI_Trader_EA.mq4    |
 //|                              AI Trader - Signal Receiver EA      |
-//|                         Polls API for trade signals              |
 //+------------------------------------------------------------------+
 #property copyright "AI Trader"
-#property version   "1.00"
+#property version   "2.00"
 #property strict
 
 //--- Input parameters
-input string   API_URL     = "https://ai-trader-mocha.vercel.app/api/mt4/signals";
+input string   API_URL     = "https://ai-trader-mocha.vercel.app";
 input string   API_KEY     = "";           // Your AUTH_SECRET from Vercel
 input int      PollSeconds = 5;            // How often to check for signals
+input int      SyncSeconds = 10;           // How often to sync state back
 input double   MaxLotSize  = 1.0;          // Max lot size safety cap
 input int      MagicNumber = 20260327;     // Magic number for EA orders
 input int      Slippage    = 3;            // Max slippage in points
 
 //--- Global variables
 datetime lastPoll = 0;
-string   processedSignals[];  // Track which signals we've already handled
+datetime lastSync = 0;
+string   processedSignals[];
+int      knownTickets[];      // Track tickets we've already synced as closed
 
-//+------------------------------------------------------------------+
-//| Expert initialization                                             |
 //+------------------------------------------------------------------+
 int OnInit()
 {
@@ -29,31 +29,34 @@ int OnInit()
       Alert("AI Trader EA: API_KEY is empty! Set your AUTH_SECRET.");
       return(INIT_PARAMETERS_INCORRECT);
    }
-
-   Print("AI Trader EA initialized. Polling every ", PollSeconds, " seconds.");
-   Print("API URL: ", API_URL);
+   Print("AI Trader EA v2.0 initialized. Poll:", PollSeconds, "s Sync:", SyncSeconds, "s");
    return(INIT_SUCCEEDED);
 }
 
 //+------------------------------------------------------------------+
-//| Expert tick function                                               |
-//+------------------------------------------------------------------+
 void OnTick()
 {
-   // Only poll at the specified interval
-   if(TimeCurrent() - lastPoll < PollSeconds)
-      return;
+   // Poll for new signals
+   if(TimeCurrent() - lastPoll >= PollSeconds)
+   {
+      lastPoll = TimeCurrent();
+      PollForSignals();
+   }
 
-   lastPoll = TimeCurrent();
-   PollForSignals();
+   // Sync state back to portfolio
+   if(TimeCurrent() - lastSync >= SyncSeconds)
+   {
+      lastSync = TimeCurrent();
+      SyncClosedTrades();
+   }
 }
 
 //+------------------------------------------------------------------+
-//| Poll API for new signals                                          |
+// Poll API for new pending orders
 //+------------------------------------------------------------------+
 void PollForSignals()
 {
-   string url = API_URL + "?key=" + API_KEY;
+   string url = API_URL + "/api/mt4/signals?key=" + API_KEY;
    string headers = "Content-Type: application/json\r\n";
    char   post[];
    char   result[];
@@ -65,30 +68,107 @@ void PollForSignals()
    {
       int err = GetLastError();
       if(err == 4060)
-         Print("Add '", API_URL, "' to Tools > Options > Expert Advisors > Allow WebRequest for listed URL");
+         Print("Add '", API_URL, "' to Tools > Options > Expert Advisors > Allow WebRequest");
       else
          Print("WebRequest error: ", err);
       return;
    }
 
    string response = CharArrayToString(result);
+   if(res != 200) { Print("API error (", res, "): ", response); return; }
 
-   if(res != 200)
-   {
-      Print("API error (", res, "): ", response);
-      return;
-   }
-
-   // Parse signals from JSON response
    ProcessSignals(response);
 }
 
 //+------------------------------------------------------------------+
-//| Process signals from API response                                  |
+// Find and report recently closed trades
+//+------------------------------------------------------------------+
+void SyncClosedTrades()
+{
+   string closedJson = "[";
+   int closedCount = 0;
+
+   // Check order history for our magic number orders that closed
+   for(int i = OrdersHistoryTotal() - 1; i >= 0; i--)
+   {
+      if(!OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) continue;
+      if(OrderMagicNumber() != MagicNumber) continue;
+      if(OrderType() > OP_SELL) continue; // Skip pending orders
+
+      int ticket = OrderTicket();
+
+      // Skip if we already synced this
+      if(IsKnownTicket(ticket)) continue;
+
+      // Only sync recent closes (last hour)
+      if(TimeCurrent() - OrderCloseTime() > 3600) continue;
+
+      if(closedCount > 0) closedJson += ",";
+      closedJson += "{";
+      closedJson += "\"ticket\":" + IntegerToString(ticket) + ",";
+      closedJson += "\"symbol\":\"" + OrderSymbol() + "\",";
+      closedJson += "\"side\":\"" + (OrderType() == OP_BUY ? "buy" : "sell") + "\",";
+      closedJson += "\"lots\":" + DoubleToString(OrderLots(), 2) + ",";
+      closedJson += "\"openPrice\":" + DoubleToString(OrderOpenPrice(), (int)MarketInfo(OrderSymbol(), MODE_DIGITS)) + ",";
+      closedJson += "\"closePrice\":" + DoubleToString(OrderClosePrice(), (int)MarketInfo(OrderSymbol(), MODE_DIGITS)) + ",";
+      closedJson += "\"profit\":" + DoubleToString(OrderProfit(), 2) + ",";
+      closedJson += "\"sl\":" + DoubleToString(OrderStopLoss(), (int)MarketInfo(OrderSymbol(), MODE_DIGITS)) + ",";
+      closedJson += "\"tp\":" + DoubleToString(OrderTakeProfit(), (int)MarketInfo(OrderSymbol(), MODE_DIGITS));
+      closedJson += "}";
+
+      AddKnownTicket(ticket);
+      closedCount++;
+   }
+   closedJson += "]";
+
+   if(closedCount == 0) return; // Nothing to sync
+
+   // Build positions array
+   string posJson = "[";
+   int posCount = 0;
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) continue;
+      if(OrderMagicNumber() != MagicNumber) continue;
+      if(OrderType() > OP_SELL) continue;
+
+      if(posCount > 0) posJson += ",";
+      posJson += "{";
+      posJson += "\"ticket\":" + IntegerToString(OrderTicket()) + ",";
+      posJson += "\"symbol\":\"" + OrderSymbol() + "\",";
+      posJson += "\"side\":\"" + (OrderType() == OP_BUY ? "buy" : "sell") + "\",";
+      posJson += "\"lots\":" + DoubleToString(OrderLots(), 2) + ",";
+      posJson += "\"openPrice\":" + DoubleToString(OrderOpenPrice(), (int)MarketInfo(OrderSymbol(), MODE_DIGITS)) + ",";
+      posJson += "\"sl\":" + DoubleToString(OrderStopLoss(), (int)MarketInfo(OrderSymbol(), MODE_DIGITS)) + ",";
+      posJson += "\"tp\":" + DoubleToString(OrderTakeProfit(), (int)MarketInfo(OrderSymbol(), MODE_DIGITS)) + ",";
+      posJson += "\"profit\":" + DoubleToString(OrderProfit(), 2);
+      posJson += "}";
+      posCount++;
+   }
+   posJson += "]";
+
+   // Send to sync endpoint
+   string url = API_URL + "/api/mt4/sync";
+   string body = "{\"key\":\"" + API_KEY + "\",\"closedTrades\":" + closedJson + ",\"positions\":" + posJson + "}";
+   string headers = "Content-Type: application/json\r\n";
+   char   postData[];
+   char   result[];
+   string resultHeaders;
+
+   StringToCharArray(body, postData, 0, StringLen(body));
+   int res = WebRequest("POST", url, headers, 5000, postData, result, resultHeaders);
+
+   if(res == 200)
+      Print("Synced ", closedCount, " closed trades to portfolio");
+   else
+      Print("Sync failed (", res, "): ", CharArrayToString(result));
+}
+
+//+------------------------------------------------------------------+
+// Process signals from API
 //+------------------------------------------------------------------+
 void ProcessSignals(string json)
 {
-   // Simple JSON parsing for signals array
    int signalsStart = StringFind(json, "\"signals\":[");
    if(signalsStart == -1) return;
 
@@ -98,7 +178,6 @@ void ProcessSignals(string json)
 
    string signalsArr = StringSubstr(json, arrStart + 1, arrEnd - arrStart - 1);
 
-   // Split into individual signal objects
    int objStart = 0;
    while(true)
    {
@@ -116,8 +195,6 @@ void ProcessSignals(string json)
 }
 
 //+------------------------------------------------------------------+
-//| Process a single signal                                            |
-//+------------------------------------------------------------------+
 void ProcessOneSignal(string json)
 {
    string id     = GetJsonString(json, "id");
@@ -129,19 +206,15 @@ void ProcessOneSignal(string json)
    double tp     = GetJsonDouble(json, "tp");
    double lots   = GetJsonDouble(json, "lots");
 
-   // Skip if already processed
    if(IsProcessed(id)) return;
-
-   // Validate
    if(symbol == "" || id == "") return;
    if(lots <= 0 || lots > MaxLotSize) lots = MathMin(0.01, MaxLotSize);
 
-   // Check if symbol exists on this broker
+   // Check if symbol exists
    if(MarketInfo(symbol, MODE_BID) == 0)
    {
-      Print("Symbol not found: ", symbol, ". Trying with suffix...");
       // Try common suffixes
-      string suffixes[] = {".r", ".i", "m", "."};
+      string suffixes[] = {".r", ".i", "m", ".", ".a", ".b"};
       bool found = false;
       for(int i = 0; i < ArraySize(suffixes); i++)
       {
@@ -154,7 +227,7 @@ void ProcessOneSignal(string json)
       }
       if(!found)
       {
-         Print("Cannot find symbol: ", symbol);
+         Print("Symbol not found on broker: ", symbol, " — skipping (crypto may not be available on MT4)");
          MarkProcessed(id);
          ConfirmSignal(id, 0, "cancelled");
          return;
@@ -162,7 +235,6 @@ void ProcessOneSignal(string json)
    }
 
    int cmd = -1;
-
    if(type == "buy_stop")       cmd = OP_BUYSTOP;
    else if(type == "buy_limit") cmd = OP_BUYLIMIT;
    else if(type == "sell_stop")  cmd = OP_SELLSTOP;
@@ -177,18 +249,16 @@ void ProcessOneSignal(string json)
       return;
    }
 
-   // Normalize prices to broker's digits
    int digits = (int)MarketInfo(symbol, MODE_DIGITS);
    entry = NormalizeDouble(entry, digits);
    sl    = NormalizeDouble(sl, digits);
    tp    = NormalizeDouble(tp, digits);
 
-   // For market orders, use current price
    double price = entry;
    if(cmd == OP_BUY)  price = MarketInfo(symbol, MODE_ASK);
    if(cmd == OP_SELL) price = MarketInfo(symbol, MODE_BID);
 
-   Print("Placing order: ", symbol, " ", EnumToString((ENUM_ORDER_TYPE)cmd),
+   Print("Placing: ", symbol, " ", EnumToString((ENUM_ORDER_TYPE)cmd),
          " lots=", lots, " price=", price, " sl=", sl, " tp=", tp);
 
    int ticket = OrderSend(symbol, cmd, lots, price, Slippage, sl, tp,
@@ -197,7 +267,7 @@ void ProcessOneSignal(string json)
 
    if(ticket > 0)
    {
-      Print("Order placed successfully. Ticket: ", ticket);
+      Print("Order placed. Ticket: ", ticket);
       ConfirmSignal(id, ticket, "executed");
    }
    else
@@ -210,15 +280,9 @@ void ProcessOneSignal(string json)
 }
 
 //+------------------------------------------------------------------+
-//| Confirm signal execution back to API                               |
-//+------------------------------------------------------------------+
 void ConfirmSignal(string id, int ticket, string action)
 {
-   string url = API_URL;
-   // Remove query params from URL for POST
-   int qPos = StringFind(url, "?");
-   if(qPos > 0) url = StringSubstr(url, 0, qPos);
-
+   string url = API_URL + "/api/mt4/signals";
    string postData = "{\"key\":\"" + API_KEY + "\",\"id\":\"" + id +
                      "\",\"ticket\":" + IntegerToString(ticket) +
                      ",\"action\":\"" + action + "\"}";
@@ -229,17 +293,16 @@ void ConfirmSignal(string id, int ticket, string action)
    string resultHeaders;
 
    StringToCharArray(postData, post, 0, StringLen(postData));
-
    int res = WebRequest("POST", url, headers, 5000, post, result, resultHeaders);
 
    if(res == 200)
-      Print("Signal ", id, " confirmed as ", action);
+      Print("Signal ", id, " confirmed: ", action);
    else
-      Print("Failed to confirm signal ", id, ": ", res);
+      Print("Confirm failed (", res, "): ", CharArrayToString(result));
 }
 
 //+------------------------------------------------------------------+
-//| Simple JSON helpers                                                |
+// JSON helpers
 //+------------------------------------------------------------------+
 string GetJsonString(string json, string key)
 {
@@ -297,8 +360,6 @@ void MarkProcessed(string id)
    int size = ArraySize(processedSignals);
    ArrayResize(processedSignals, size + 1);
    processedSignals[size] = id;
-
-   // Keep list manageable
    if(size > 100)
    {
       for(int i = 0; i < size - 50; i++)
@@ -307,9 +368,27 @@ void MarkProcessed(string id)
    }
 }
 
-//+------------------------------------------------------------------+
-//| Error description helper                                           |
-//+------------------------------------------------------------------+
+//--- Known closed tickets tracking
+bool IsKnownTicket(int ticket)
+{
+   for(int i = 0; i < ArraySize(knownTickets); i++)
+      if(knownTickets[i] == ticket) return true;
+   return false;
+}
+
+void AddKnownTicket(int ticket)
+{
+   int size = ArraySize(knownTickets);
+   ArrayResize(knownTickets, size + 1);
+   knownTickets[size] = ticket;
+   if(size > 200)
+   {
+      for(int i = 0; i < size - 100; i++)
+         knownTickets[i] = knownTickets[i + 100];
+      ArrayResize(knownTickets, size - 100 + 1);
+   }
+}
+
 string ErrorDescription(int code)
 {
    switch(code)
