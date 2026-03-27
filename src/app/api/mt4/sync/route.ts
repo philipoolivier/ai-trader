@@ -31,7 +31,8 @@ interface MT4ClosedTrade {
 // POST: EA sends its current state for sync
 export async function POST(request: Request) {
   try {
-    const { key, positions, closedTrades, pendingOrders } = await request.json()
+    const body = await request.json()
+    const { key, positions, closedTrades, cancelledOrders } = body
 
     if (key !== process.env.AUTH_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -65,13 +66,39 @@ export async function POST(request: Request) {
           pnl = (trade.openPrice - trade.closePrice) * units
         }
 
-        // Find matching position in our DB
-        const { data: existingPos } = await supabase
+        // Find matching position in our DB (try both XAUUSD and XAU/USD formats)
+        const symbolClean = symbol.replace('/', '')
+        let symbolWithSlash = symbol
+        // Try to add slash for 6-char symbols
+        if (!symbol.includes('/') && symbol.length === 6) {
+          symbolWithSlash = symbol.slice(0, 3) + '/' + symbol.slice(3)
+        }
+
+        let { data: existingPos } = await supabase
           .from('positions')
           .select('*')
           .eq('portfolio_id', portfolio.id)
-          .eq('symbol', symbol)
+          .eq('symbol', symbolClean)
           .single()
+
+        if (!existingPos) {
+          const { data: pos2 } = await supabase
+            .from('positions')
+            .select('*')
+            .eq('portfolio_id', portfolio.id)
+            .eq('symbol', symbolWithSlash)
+            .single()
+          existingPos = pos2
+        }
+        if (!existingPos) {
+          const { data: pos3 } = await supabase
+            .from('positions')
+            .select('*')
+            .eq('portfolio_id', portfolio.id)
+            .eq('symbol', symbol)
+            .single()
+          existingPos = pos3
+        }
 
         if (existingPos && parseFloat(existingPos.quantity) > 0) {
           const posQty = parseFloat(existingPos.quantity)
@@ -111,23 +138,30 @@ export async function POST(request: Request) {
       }
     }
 
-    // Sync pending orders — cancel any that MT4 no longer has
-    if (pendingOrders && Array.isArray(pendingOrders)) {
-      const mt4Symbols = (pendingOrders as { symbol: string }[]).map(o => o.symbol.toUpperCase())
+    // Process cancelled pending orders from MT4
+    if (cancelledOrders && Array.isArray(cancelledOrders)) {
+      for (const cancelled of cancelledOrders as { ticket: number; symbol: string; side: string; entry: number }[]) {
+        const cancelSymbol = cancelled.symbol.toUpperCase()
+        // Find matching pending order by symbol, side, and entry price
+        const { data: matchingOrders } = await supabase
+          .from('pending_orders')
+          .select('*')
+          .eq('status', 'pending')
+          .or(`symbol.eq.${cancelSymbol},symbol.eq.${cancelSymbol.slice(0, 3)}/${cancelSymbol.slice(3)}`)
 
-      const { data: ourPending } = await supabase
-        .from('pending_orders')
-        .select('*')
-        .eq('status', 'pending')
-
-      if (ourPending) {
-        for (const order of ourPending) {
-          const orderSymbol = order.symbol.replace('/', '').toUpperCase()
-          // If we have a pending order but MT4 doesn't, it was cancelled on MT4
-          const existsOnMT4 = mt4Symbols.some(s =>
-            s.replace(/[^A-Z]/g, '') === orderSymbol
-          )
-          // Don't auto-cancel — MT4 might not have the symbol at all (crypto)
+        if (matchingOrders) {
+          for (const order of matchingOrders) {
+            const orderEntry = parseFloat(order.entry_price)
+            // Match by entry price (within small tolerance)
+            if (Math.abs(orderEntry - cancelled.entry) < 0.01) {
+              await supabase
+                .from('pending_orders')
+                .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+                .eq('id', order.id)
+              synced.push(`Cancelled pending ${cancelSymbol} @ ${cancelled.entry} (MT4 #${cancelled.ticket})`)
+              break
+            }
+          }
         }
       }
     }

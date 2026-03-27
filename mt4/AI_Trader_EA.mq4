@@ -87,41 +87,70 @@ void SyncClosedTrades()
 {
    string closedJson = "[";
    int closedCount = 0;
+   string cancelledJson = "[";
+   int cancelledCount = 0;
 
    // Check order history for our magic number orders that closed
    for(int i = OrdersHistoryTotal() - 1; i >= 0; i--)
    {
       if(!OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) continue;
       if(OrderMagicNumber() != MagicNumber) continue;
-      if(OrderType() > OP_SELL) continue; // Skip pending orders
 
       int ticket = OrderTicket();
 
       // Skip if we already synced this
       if(IsKnownTicket(ticket)) continue;
 
-      // Only sync recent closes (last hour)
-      if(TimeCurrent() - OrderCloseTime() > 3600) continue;
+      // Only sync recent closes (last 2 hours)
+      if(TimeCurrent() - OrderCloseTime() > 7200) continue;
 
-      if(closedCount > 0) closedJson += ",";
-      closedJson += "{";
-      closedJson += "\"ticket\":" + IntegerToString(ticket) + ",";
-      closedJson += "\"symbol\":\"" + OrderSymbol() + "\",";
-      closedJson += "\"side\":\"" + (OrderType() == OP_BUY ? "buy" : "sell") + "\",";
-      closedJson += "\"lots\":" + DoubleToString(OrderLots(), 2) + ",";
-      closedJson += "\"openPrice\":" + DoubleToString(OrderOpenPrice(), (int)MarketInfo(OrderSymbol(), MODE_DIGITS)) + ",";
-      closedJson += "\"closePrice\":" + DoubleToString(OrderClosePrice(), (int)MarketInfo(OrderSymbol(), MODE_DIGITS)) + ",";
-      closedJson += "\"profit\":" + DoubleToString(OrderProfit(), 2) + ",";
-      closedJson += "\"sl\":" + DoubleToString(OrderStopLoss(), (int)MarketInfo(OrderSymbol(), MODE_DIGITS)) + ",";
-      closedJson += "\"tp\":" + DoubleToString(OrderTakeProfit(), (int)MarketInfo(OrderSymbol(), MODE_DIGITS));
-      closedJson += "}";
+      int orderType = OrderType();
+      int digits = (int)MarketInfo(OrderSymbol(), MODE_DIGITS);
+      if(digits == 0) digits = 5;
+
+      // Closed market orders (OP_BUY or OP_SELL that were closed)
+      if(orderType <= OP_SELL)
+      {
+         Print("Syncing closed trade: ", OrderSymbol(), " #", ticket,
+               " open=", OrderOpenPrice(), " close=", OrderClosePrice(),
+               " profit=", OrderProfit());
+
+         if(closedCount > 0) closedJson += ",";
+         closedJson += "{";
+         closedJson += "\"ticket\":" + IntegerToString(ticket) + ",";
+         closedJson += "\"symbol\":\"" + OrderSymbol() + "\",";
+         closedJson += "\"side\":\"" + (orderType == OP_BUY ? "buy" : "sell") + "\",";
+         closedJson += "\"lots\":" + DoubleToString(OrderLots(), 2) + ",";
+         closedJson += "\"openPrice\":" + DoubleToString(OrderOpenPrice(), digits) + ",";
+         closedJson += "\"closePrice\":" + DoubleToString(OrderClosePrice(), digits) + ",";
+         closedJson += "\"profit\":" + DoubleToString(OrderProfit(), 2) + ",";
+         closedJson += "\"sl\":" + DoubleToString(OrderStopLoss(), digits) + ",";
+         closedJson += "\"tp\":" + DoubleToString(OrderTakeProfit(), digits);
+         closedJson += "}";
+         closedCount++;
+      }
+      // Deleted pending orders (OP_BUYSTOP, OP_SELLLIMIT etc in history = cancelled)
+      else if(orderType >= OP_BUYLIMIT && orderType <= OP_SELLSTOP)
+      {
+         Print("Syncing cancelled pending: ", OrderSymbol(), " #", ticket, " type=", orderType);
+
+         if(cancelledCount > 0) cancelledJson += ",";
+         cancelledJson += "{";
+         cancelledJson += "\"ticket\":" + IntegerToString(ticket) + ",";
+         cancelledJson += "\"symbol\":\"" + OrderSymbol() + "\",";
+         cancelledJson += "\"side\":\"" + (orderType == OP_BUYLIMIT || orderType == OP_BUYSTOP ? "buy" : "sell") + "\",";
+         cancelledJson += "\"entry\":" + DoubleToString(OrderOpenPrice(), digits);
+         cancelledJson += "}";
+         cancelledCount++;
+      }
 
       AddKnownTicket(ticket);
-      closedCount++;
    }
    closedJson += "]";
+   cancelledJson += "]";
 
-   if(closedCount == 0) return; // Nothing to sync
+   if(closedCount == 0 && cancelledCount == 0)
+      return;
 
    // Build positions array
    string posJson = "[";
@@ -149,7 +178,7 @@ void SyncClosedTrades()
 
    // Send to sync endpoint
    string url = API_URL + "/api/mt4/sync";
-   string body = "{\"key\":\"" + API_KEY + "\",\"closedTrades\":" + closedJson + ",\"positions\":" + posJson + "}";
+   string body = "{\"key\":\"" + API_KEY + "\",\"closedTrades\":" + closedJson + ",\"cancelledOrders\":" + cancelledJson + ",\"positions\":" + posJson + "}";
    string headers = "Content-Type: application/json\r\n";
    char   postData[];
    char   result[];
@@ -159,7 +188,7 @@ void SyncClosedTrades()
    int res = WebRequest("POST", url, headers, 5000, postData, result, resultHeaders);
 
    if(res == 200)
-      Print("Synced ", closedCount, " closed trades to portfolio");
+      Print("Synced: ", closedCount, " closed, ", cancelledCount, " cancelled");
    else
       Print("Sync failed (", res, "): ", CharArrayToString(result));
 }
