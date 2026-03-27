@@ -6,7 +6,7 @@ import { getIndicators, formatIndicatorsForClaude } from '@/lib/twelvedata'
 const DEFAULT_USER_ID = 'default-user'
 const INITIAL_BALANCE = 500
 
-export const maxDuration = 60
+export const maxDuration = 120
 
 export async function POST(request: Request) {
   try {
@@ -24,12 +24,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Claude API key is not configured' }, { status: 500 })
     }
 
-    // Fetch live indicator data if symbol is provided
+    // Fetch live indicator data if symbol is provided (timeout after 10s)
     let indicatorContext = ''
     if (symbol) {
       try {
         const tvInterval = interval || '5min'
-        const indicatorData = await getIndicators(symbol, tvInterval)
+        const indicatorPromise = getIndicators(symbol, tvInterval)
+        const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+        const indicatorData = await Promise.race([indicatorPromise, timeoutPromise])
         indicatorContext = formatIndicatorsForClaude(indicatorData)
       } catch {
         // Indicators are optional — don't block analysis
