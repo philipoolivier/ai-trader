@@ -71,39 +71,24 @@ For each visible zone and indicator, tell me:
 - What does the overall zone structure tell us about institutional positioning?
 
 ### Trade Scenarios
-This trader is a SCALPER on a small account. Trade sizing must be TIGHT.
-
-TRADE PLACEMENT RULES (use Supply & Demand zones from the chart):
-- SELL entries: Place SELL LIMIT at the bottom edge of a FRESH (dark red) supply zone. SL just above the top of the zone.
-- BUY entries: Place BUY LIMIT at the top edge of a FRESH (dark green) demand zone. SL just below the bottom of the zone.
-- BREAKOUT entries: SELL STOP below a tested demand zone (light green) that's about to break. BUY STOP above a tested supply zone (light pink).
-- TP: Target the nearest OPPOSITE zone (sell → nearest demand zone below, buy → nearest supply zone above)
-- FRESH zones are higher probability than TESTED zones
-- If price is between zones with no clear setup, say "no trade — wait for price to reach a zone"
-- The trader uses % risk position sizing, so tight SL = bigger lot size = same risk
-- Prefer multiple small scalps over one big swing
-
-IMPORTANT: Place SL/TP based on STRUCTURE, not fixed distances:
-- SL behind the nearest micro structure: wick high/low, 5m order block, FVG edge, micro swing
-- TP at the next liquidity pocket, session level, or micro structure
-- Adapt to the instrument's typical range
+Use the Supply & Demand zones visible on the chart to identify trades. FRESH (dark) zones are high probability. TESTED (light) zones are weaker. If no clear setup exists, say "no trade — wait for price to reach a zone."
 
 For EACH scenario:
 
 **SCALP — [Description]**
 - Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
-- Entry: Exact price and why here
-- Stop: Exact price — TIGHT, behind nearest micro structure
-- Target: Exact price — next immediate level (quick profit)
-- R:R ratio (aim for minimum 1.5:1)
-- Confluence: What makes this high probability
+- Entry: Exact price — explain WHY (which zone edge, what structure, what triggered it)
+- Stop Loss: Exact price — explain WHY (behind which zone, which level invalidates the trade idea)
+- Take Profit: Exact price — explain WHY (which opposite zone, level, or liquidity target)
+- R:R ratio
+- Confluence: What makes this high probability (zone freshness, session context, trend alignment)
 
 **INTRADAY — [Description]** (only if clean setup)
-- Same format, slightly wider but still structural
-- Partial close + runner target
+- Same format with wider structural targets
+- Partial close + runner levels with reasoning
 
 **COUNTER-TREND** (if applicable)
-- Same format, lower conviction
+- Same format, explain why lower conviction
 
 ### Overall Bias
 What's your lean? What invalidates it?
@@ -240,39 +225,24 @@ Format as: Level | Price | Significance
 Read EVERY indicator provided. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume showing distribution or accumulation?
 
 ### Trade Scenarios
-This trader is a SCALPER on a small account. Trade sizing must be TIGHT.
-
-TRADE PLACEMENT RULES (use Supply & Demand zones from the chart):
-- SELL entries: Place SELL LIMIT at the bottom edge of a FRESH (dark red) supply zone. SL just above the top of the zone.
-- BUY entries: Place BUY LIMIT at the top edge of a FRESH (dark green) demand zone. SL just below the bottom of the zone.
-- BREAKOUT entries: SELL STOP below a tested demand zone (light green) that's about to break. BUY STOP above a tested supply zone (light pink).
-- TP: Target the nearest OPPOSITE zone (sell → nearest demand zone below, buy → nearest supply zone above)
-- FRESH zones are higher probability than TESTED zones
-- If price is between zones with no clear setup, say "no trade — wait for price to reach a zone"
-- The trader uses % risk position sizing, so tight SL = bigger lot size = same risk
-- Prefer multiple small scalps over one big swing
-
-IMPORTANT: Place SL/TP based on STRUCTURE, not fixed distances:
-- SL behind the nearest micro structure: wick high/low, 5m order block, FVG edge, micro swing
-- TP at the next liquidity pocket, session level, or micro structure
-- Adapt to the instrument's typical range
+Use the Supply & Demand zones visible on the chart to identify trades. FRESH (dark) zones are high probability. TESTED (light) zones are weaker. If no clear setup exists, say "no trade — wait for price to reach a zone."
 
 For EACH scenario:
 
 **SCALP — [Description]**
 - Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
-- Entry: Exact price and why here
-- Stop: Exact price — TIGHT, behind nearest micro structure
-- Target: Exact price — next immediate level (quick profit)
-- R:R ratio (aim for minimum 1.5:1)
-- Confluence: What makes this high probability
+- Entry: Exact price — explain WHY (which zone edge, what structure, what triggered it)
+- Stop Loss: Exact price — explain WHY (behind which zone, which level invalidates the trade idea)
+- Take Profit: Exact price — explain WHY (which opposite zone, level, or liquidity target)
+- R:R ratio
+- Confluence: What makes this high probability (zone freshness, session context, trend alignment)
 
 **INTRADAY — [Description]** (only if clean setup)
-- Same format, slightly wider but still structural
-- Partial close + runner target
+- Same format with wider structural targets
+- Partial close + runner levels with reasoning
 
 **COUNTER-TREND** (if applicable)
-- Same format, lower conviction
+- Same format, explain why lower conviction
 
 ### Overall Bias
 What's your lean? What invalidates it?
