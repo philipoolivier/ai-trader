@@ -11,9 +11,7 @@
     "unlimitedStorage"
   ],
   "host_permissions": [
-    "*://*.tradingview.com/*",
-    "*://ai-trader-mocha.vercel.app/*",
-    "http://localhost:3000/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
