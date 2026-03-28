@@ -33,16 +33,18 @@ What's driving this instrument right now? Recent moves, catalysts, fundamental b
 Read the chart session by session. What happened in Asia? London? NY? What's the intraday narrative? (e.g., "Asia pumps, London distributes, NY dumps")
 
 ### Key Levels
-Build a table of every key level you can read from the chart. Include:
-- Volume profile levels (POC, VAH, VAL) if visible
-- Session highs/lows (AS.H, AS.L, LO.H, LO.L, NYAM.H, NYAM.L, NYPM.H, NYPM.L)
-- Previous day high/low (PDH, PDL)
-- VWAP
-- Any visible support/resistance, order blocks, or liquidity zones
+IMPORTANT: Read ALL levels directly from the chart screenshots. The chart has ICT session boxes (Asia, London, NY), VRVP (volume profile), order blocks, and key horizontal levels drawn on it. Read the EXACT prices from what you SEE — do NOT make up or approximate levels.
+
+Build a table of every key level visible on the chart:
+- Session highs/lows from the colored session boxes (read exact prices from the price axis)
+- Volume profile levels: POC (point of control), high volume nodes, low volume nodes from VRVP
+- Order blocks and liquidity zones (colored rectangles on chart)
+- Any horizontal lines or levels drawn on the chart
+- PDH/PDL if visible
 Format as: Level | Price | Significance
 
 ### Indicator Reading
-Read EVERY indicator visible on the chart. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume profile showing distribution or accumulation?
+Read EVERY indicator visible on the chart. The chart has VRVP, ICT zones, session boxes, and possibly VWAP/EMAs. Tell me what they're SAYING — where is volume concentrated? Where are the liquidity pools? What do the session ranges tell us about institutional activity?
 
 ### Trade Scenarios
 This trader is a SCALPER on a small account ($500). Trade sizing must be TIGHT.

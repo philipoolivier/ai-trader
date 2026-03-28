@@ -130,15 +130,15 @@ async function fetchIndicator(indicator: string, symbol: string, interval: strin
 
 export async function getIndicators(symbol: string, interval: string = '5min'): Promise<IndicatorData> {
   // Only fetch what the chart CAN'T show visually:
-  // ATR (exact number for SL sizing), ADX/DI (exact trend strength), daily levels
-  // User's TradingView chart handles: VWAP, BBands, Ichimoku, SuperTrend, VRVP etc.
-  const [atrRaw, adxRaw, plusDiRaw, minusDiRaw, dailyOhlc] = await Promise.all([
+  // ATR (exact number for SL sizing), ADX/DI (exact trend strength)
+  // PDH/PDL/PWH/PWL are on the user's chart — Claude reads them from screenshots
+  const [atrRaw, adxRaw, plusDiRaw, minusDiRaw] = await Promise.all([
     fetchIndicator('atr', symbol, interval, '&time_period=14'),
     fetchIndicator('adx', symbol, interval, '&time_period=14'),
     fetchIndicator('plus_di', symbol, interval, '&time_period=14'),
     fetchIndicator('minus_di', symbol, interval, '&time_period=14'),
-    fetchIndicator('time_series', symbol, '1day', ''), // Daily candles for PDH/PDL
   ])
+  const dailyOhlc: Record<string, string>[] = []
 
   // Set empty arrays for indicators now shown on chart visually
   const vwapRaw: Record<string, string>[] = []
@@ -211,56 +211,19 @@ export function formatIndicatorsForClaude(data: IndicatorData): string {
     return abs > 0 && abs < 10 ? v.toFixed(5) : abs < 200 ? v.toFixed(3) : v.toFixed(2)
   }
 
-  // KEY LEVELS — most important for trade placement
-  if (data.keyLevels.pdh > 0) {
-    parts.push(`## Key Price Levels (USE THESE FOR SL/TP PLACEMENT)
-| Level | Price | Use For |
-|-------|-------|---------|
-| Previous Day High (PDH) | ${dp(data.keyLevels.pdh)} | Resistance / SL above for shorts |
-| Previous Day Low (PDL) | ${dp(data.keyLevels.pdl)} | Support / SL below for longs |
-| Previous Week High (PWH) | ${dp(data.keyLevels.pwh)} | Major resistance |
-| Previous Week Low (PWL) | ${dp(data.keyLevels.pwl)} | Major support |
-| Current Price | ${dp(data.keyLevels.currentPrice)} | Reference |
+  // Note: PDH/PDL/PWH/PWL and VWAP are visible on the user's chart
+  // Claude should read these from the screenshots, not from API data
 
-Place SL behind these levels. Place TP at these levels. These are where institutions have orders.`)
-  }
-
-  // VWAP
-  if (data.vwap.length > 0) {
-    const latest = data.vwap[0]
-    const aboveVwap = data.keyLevels.currentPrice > latest.vwap
-    parts.push(`**VWAP**: ${dp(latest.vwap)} — Price is ${aboveVwap ? 'ABOVE (bullish bias)' : 'BELOW (bearish bias)'} institutional fair value`)
-  }
-
-  // ATR
+  // ATR — the key number Claude can't read from a screenshot
   if (data.atr.length > 0) {
     const latest = data.atr[0]
     const prev = data.atr.length > 5 ? data.atr[5] : data.atr[data.atr.length - 1]
     const expanding = latest.atr > prev.atr
     parts.push(`**ATR(14)**: ${dp(latest.atr)} — Volatility ${expanding ? 'EXPANDING' : 'CONTRACTING'}
-  - Suggested scalp SL: ~${dp(latest.atr * 0.5)} (0.5x ATR)
-  - Suggested scalp TP: ~${dp(latest.atr * 0.75)} (0.75x ATR)
-  - Max reasonable SL: ~${dp(latest.atr * 1.5)} (1.5x ATR)`)
+  - Use this for SL/TP sizing. Scalp SL ~${dp(latest.atr * 0.5)}-${dp(latest.atr * 1.0)} based on structure`)
   }
 
-  // Bollinger Bands
-  if (data.bbands.length > 0) {
-    const latest = data.bbands[0]
-    const bandwidth = ((latest.upper - latest.lower) / latest.middle) * 100
-    const squeeze = bandwidth < 2
-    parts.push(`**Bollinger Bands(20,2)**: Upper ${dp(latest.upper)} | Middle ${dp(latest.middle)} | Lower ${dp(latest.lower)}
-  - Bandwidth: ${bandwidth.toFixed(2)}% — ${squeeze ? 'SQUEEZE (breakout imminent)' : bandwidth < 4 ? 'Tight (coiling)' : 'Normal'}
-  - Upper band = resistance for scalp shorts, Lower band = support for scalp longs`)
-  }
-
-  // SuperTrend
-  if (data.supertrend.length > 0) {
-    const latest = data.supertrend[0]
-    parts.push(`**SuperTrend(10,3)**: ${dp(latest.supertrend)} — ${latest.direction === 'bullish' ? 'BULLISH (price above)' : 'BEARISH (price below)'}
-  - Use SuperTrend level as dynamic stop loss: ${dp(latest.supertrend)}`)
-  }
-
-  // ADX + DI
+  // ADX + DI — exact trend strength
   if (data.adx.length > 0) {
     const latest = data.adx[0]
     let trendState = 'NO TREND (choppy — avoid or scalp mean reversion only)'
@@ -271,17 +234,6 @@ Place SL behind these levels. Place TP at these levels. These are where institut
     const direction = latest.plus_di > latest.minus_di ? 'BULLISH (+DI dominant)' : 'BEARISH (-DI dominant)'
     parts.push(`**ADX(14)**: ${latest.adx.toFixed(1)} — ${trendState}
   - Direction: ${direction} (+DI: ${latest.plus_di.toFixed(1)}, -DI: ${latest.minus_di.toFixed(1)})`)
-  }
-
-  // Ichimoku
-  if (data.ichimoku.length > 0) {
-    const latest = data.ichimoku[0]
-    const cloudTop = Math.max(latest.senkou_span_a, latest.senkou_span_b)
-    const cloudBottom = Math.min(latest.senkou_span_a, latest.senkou_span_b)
-    const cloudBullish = latest.senkou_span_a > latest.senkou_span_b
-    parts.push(`**Ichimoku**: Tenkan ${dp(latest.tenkan_sen)} | Kijun ${dp(latest.kijun_sen)} | Cloud ${dp(cloudBottom)}-${dp(cloudTop)} (${cloudBullish ? 'BULLISH' : 'BEARISH'})
-  - Kijun-sen (${dp(latest.kijun_sen)}) = key mean reversion level (use as SL/TP reference)
-  - Cloud zone (${dp(cloudBottom)}-${dp(cloudTop)}) = S/R zone for entries`)
   }
 
   if (parts.length === 0) return ''
