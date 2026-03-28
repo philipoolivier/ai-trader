@@ -8,7 +8,10 @@ export async function POST(request: Request) {
     const { suggestionId, symbol, side, lotSize, entryPrice, stopLoss, takeProfit, label, orderType } = await request.json()
     const lots = lotSize || 0.01
     const validSuggestionId = suggestionId && typeof suggestionId === 'string' && suggestionId.length > 10 ? suggestionId : null
-    const type = (orderType || 'market').toLowerCase()
+    // Normalize order type — Claude might output "sell stop", "SELL_STOP", "sell_stop" etc.
+    const rawType = (orderType || 'market').toLowerCase().replace(/\s+/g, '_')
+    const type = rawType === 'market' ? 'market' : rawType
+    console.log('Take trade:', { symbol, side, type, lots, entryPrice, stopLoss, takeProfit, label })
 
     if (!symbol || !side) {
       return NextResponse.json({ error: 'Symbol and side are required' }, { status: 400 })
@@ -28,7 +31,14 @@ export async function POST(request: Request) {
     // If order type is explicitly a stop or limit, create pending order
     const isPendingType = ['buy_stop', 'buy_limit', 'sell_stop', 'sell_limit'].includes(type)
 
-    if (isPendingType && entryPrice) {
+    if (isPendingType) {
+      // For pending orders, use entry price from trade card, or fetch current price
+      let pendingEntry = entryPrice ? parseFloat(entryPrice) : 0
+      if (!pendingEntry) {
+        try { pendingEntry = await getPrice(symbol) } catch { /* use 0 */ }
+      }
+      console.log('Creating pending order:', { type, pendingEntry, isPendingType })
+
       try {
         const { data: order, error: orderError } = await supabase
           .from('pending_orders')
@@ -36,7 +46,7 @@ export async function POST(request: Request) {
             symbol: symbol.toUpperCase(),
             side,
             lot_size: lots,
-            entry_price: parseFloat(entryPrice),
+            entry_price: pendingEntry,
             stop_loss: stopLoss ? parseFloat(stopLoss) : null,
             take_profit: takeProfit ? parseFloat(takeProfit) : null,
             order_type: type,
