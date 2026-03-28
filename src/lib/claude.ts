@@ -70,8 +70,39 @@ For each visible zone and indicator, tell me:
 - Are we inside a zone or between zones?
 - What does the overall zone structure tell us about institutional positioning?
 
+### Supply & Demand Zone Strategy
+Apply these S&D trading rules when analyzing the chart:
+
+**Zone Quality Assessment:**
+- FRESH zones (dark red/green) = institutional orders still unfilled. HIGH probability.
+- TESTED zones (light pink/green) = already visited. LOWER probability, may break on retest.
+- Zones created by strong impulsive moves away = strongest zones.
+- Zones created by slow grinding moves = weaker zones.
+- Multiple timeframe zone alignment = highest conviction (e.g., 5m demand inside 1H demand).
+
+**Entry Logic:**
+- LONG: Wait for price to drop INTO a fresh demand zone (dark green). Enter BUY LIMIT at the top edge.
+- SHORT: Wait for price to rally INTO a fresh supply zone (dark red). Enter SELL LIMIT at the bottom edge.
+- BREAKOUT: If a tested (light) zone breaks, enter in the direction of the break (SELL STOP below tested demand, BUY STOP above tested supply).
+- DO NOT enter in the middle between zones — wait for price to reach a zone.
+
+**SL Logic:**
+- Place SL just beyond the far edge of the zone. If the zone breaks, the trade idea is wrong.
+- For demand zones: SL below the bottom of the zone.
+- For supply zones: SL above the top of the zone.
+
+**TP Logic:**
+- Target the nearest OPPOSITE fresh zone (short → nearest fresh demand below, long → nearest fresh supply above).
+- If no opposite zone is visible, target the nearest session high/low or structural level.
+- Partial close at first target, runner to next zone.
+
+**No Trade Conditions:**
+- Price is in the middle between zones with no nearby zone to trade off.
+- All nearby zones are tested (light colored) — wait for fresh zones to form.
+- ADX < 20 with no clear zone reaction — choppy, avoid.
+
 ### Trade Scenarios
-Use the Supply & Demand zones visible on the chart to identify trades. FRESH (dark) zones are high probability. TESTED (light) zones are weaker. If no clear setup exists, say "no trade — wait for price to reach a zone."
+Apply the S&D strategy above. If no clear setup exists, say "no trade — wait for price to reach a zone."
 
 For EACH scenario:
 
@@ -224,8 +255,39 @@ Format as: Level | Price | Significance
 ### Indicator Reading
 Read EVERY indicator provided. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume showing distribution or accumulation?
 
+### Supply & Demand Zone Strategy
+Apply these S&D trading rules when analyzing the chart:
+
+**Zone Quality Assessment:**
+- FRESH zones (dark red/green) = institutional orders still unfilled. HIGH probability.
+- TESTED zones (light pink/green) = already visited. LOWER probability, may break on retest.
+- Zones created by strong impulsive moves away = strongest zones.
+- Zones created by slow grinding moves = weaker zones.
+- Multiple timeframe zone alignment = highest conviction (e.g., 5m demand inside 1H demand).
+
+**Entry Logic:**
+- LONG: Wait for price to drop INTO a fresh demand zone (dark green). Enter BUY LIMIT at the top edge.
+- SHORT: Wait for price to rally INTO a fresh supply zone (dark red). Enter SELL LIMIT at the bottom edge.
+- BREAKOUT: If a tested (light) zone breaks, enter in the direction of the break (SELL STOP below tested demand, BUY STOP above tested supply).
+- DO NOT enter in the middle between zones — wait for price to reach a zone.
+
+**SL Logic:**
+- Place SL just beyond the far edge of the zone. If the zone breaks, the trade idea is wrong.
+- For demand zones: SL below the bottom of the zone.
+- For supply zones: SL above the top of the zone.
+
+**TP Logic:**
+- Target the nearest OPPOSITE fresh zone (short → nearest fresh demand below, long → nearest fresh supply above).
+- If no opposite zone is visible, target the nearest session high/low or structural level.
+- Partial close at first target, runner to next zone.
+
+**No Trade Conditions:**
+- Price is in the middle between zones with no nearby zone to trade off.
+- All nearby zones are tested (light colored) — wait for fresh zones to form.
+- ADX < 20 with no clear zone reaction — choppy, avoid.
+
 ### Trade Scenarios
-Use the Supply & Demand zones visible on the chart to identify trades. FRESH (dark) zones are high probability. TESTED (light) zones are weaker. If no clear setup exists, say "no trade — wait for price to reach a zone."
+Apply the S&D strategy above. If no clear setup exists, say "no trade — wait for price to reach a zone."
 
 For EACH scenario:
 
