@@ -69,15 +69,33 @@ async function doCapture(symbol, timeframes, originTabId, originWindowId) {
         if (i > 0) {
           const url = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}&interval=${tf.interval}`;
           await chrome.tabs.update(openTabId, { url });
-          await delay(5000); // Wait for chart to load
+          await delay(5000);
         }
 
-        // Make sure window is focused
+        // Auto-fit the chart to screen
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: openTabId },
+            func: () => {
+              // Press Alt+A to auto-scale, then Shift+\ to reset zoom
+              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', altKey: true, bubbles: true }));
+              // Click the auto-fit button if it exists
+              const autoBtn = document.querySelector('[data-name="auto"]') ||
+                              document.querySelector('[aria-label="Auto (fits data to screen)"]') ||
+                              document.querySelector('button[class*="autoScale"]');
+              if (autoBtn) autoBtn.click();
+            },
+          });
+        } catch (e) { console.log('Auto-fit failed:', e); }
+
+        await delay(2000);
+
+        // Focus window for capture
         try {
           await chrome.windows.update(tab.windowId, { focused: true });
         } catch (e) { console.log('Focus failed:', e); }
 
-        await delay(1000);
+        await delay(500);
 
         // Take screenshot
         const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
