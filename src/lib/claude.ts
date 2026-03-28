@@ -32,30 +32,55 @@ What's driving this instrument right now? Recent moves, catalysts, fundamental b
 ### Chart Structure
 Read the chart session by session. What happened in Asia? London? NY? What's the intraday narrative? (e.g., "Asia pumps, London distributes, NY dumps")
 
-### Key Levels
-IMPORTANT: Read ALL levels directly from the chart screenshots. The chart has ICT session boxes (Asia, London, NY), VRVP (volume profile), order blocks, and key horizontal levels drawn on it. Read the EXACT prices from what you SEE — do NOT make up or approximate levels.
+### Key Levels & Zones
+CRITICAL: Read ALL levels directly from the chart screenshots. Do NOT make up or approximate prices. Read EXACT values from the price axis on the right side of the chart.
 
-Build a table of every key level visible on the chart:
-- Session highs/lows from the colored session boxes (read exact prices from the price axis)
-- Volume profile levels: POC (point of control), high volume nodes, low volume nodes from VRVP
-- Order blocks and liquidity zones (colored rectangles on chart)
-- Any horizontal lines or levels drawn on the chart
-- PDH/PDL if visible
-Format as: Level | Price | Significance
+The chart has these indicators — read them carefully:
 
-### Indicator Reading
-Read EVERY indicator visible on the chart. The chart has VRVP, ICT zones, session boxes, and possibly VWAP/EMAs. Tell me what they're SAYING — where is volume concentrated? Where are the liquidity pools? What do the session ranges tell us about institutional activity?
+**Supply & Demand Zones:**
+- DARK RED zones = FRESH/UNTESTED supply (strong — price hasn't returned here yet. These are high-probability SHORT entries)
+- LIGHT PINK zones = TESTED supply (weaker — price already visited, may not hold again)
+- DARK GREEN zones = FRESH/UNTESTED demand (strong — price hasn't returned here yet. These are high-probability LONG entries)
+- LIGHT GREEN zones = TESTED demand (weaker — already visited)
+- FRESH zones are where you want to place limit orders. The edge of the zone = your entry, the far side = your SL.
+
+**ICT Session Boxes:**
+- YELLOW boxes = Asia session range
+- BLUE boxes = London session range
+- RED/PURPLE boxes = New York session range
+- Session highs/lows are key levels. Sweeps of session highs/lows = liquidity grabs.
+
+**Horizontal Lines:**
+- BLUE vertical lines = session/day break lines (where a new trading day starts)
+- Read any labeled horizontal lines (PDH, PDL, etc.) with their exact prices
+
+Build a table of every key level and zone visible:
+| Level/Zone | Price Range | Type | Status |
+|------------|-------------|------|--------|
+| Supply Zone | $X - $Y | Fresh/Tested | Short entry / SL placement |
+| Demand Zone | $X - $Y | Fresh/Tested | Long entry / SL placement |
+| Session High | $X | Asia/London/NY | Liquidity target |
+| PDH/PDL | $X | Daily level | Key S/R |
+
+### Indicator & Zone Reading
+For each visible zone and indicator, tell me:
+- Which supply/demand zones are FRESH (dark colored) vs TESTED (light colored)?
+- Where are the closest fresh zones above and below current price?
+- Which session liquidity has been swept? Which hasn't?
+- Are we inside a zone or between zones?
+- What does the overall zone structure tell us about institutional positioning?
 
 ### Trade Scenarios
-This trader is a SCALPER on a small account ($500). Trade sizing must be TIGHT.
+This trader is a SCALPER on a small account. Trade sizing must be TIGHT.
 
-CRITICAL SIZING RULES:
-- SL must be TIGHT and placed at the nearest structural invalidation — NOT wide swing levels
-- For scalps: SL should be 5-15 pips on forex, $8-20 on gold, $200-500 on BTC
-- For intraday: SL can be wider but still structural, not arbitrary
-- TP should be at the NEAREST reaction level for scalps (quick in/out)
+TRADE PLACEMENT RULES (use Supply & Demand zones from the chart):
+- SELL entries: Place SELL LIMIT at the bottom edge of a FRESH (dark red) supply zone. SL just above the top of the zone.
+- BUY entries: Place BUY LIMIT at the top edge of a FRESH (dark green) demand zone. SL just below the bottom of the zone.
+- BREAKOUT entries: SELL STOP below a tested demand zone (light green) that's about to break. BUY STOP above a tested supply zone (light pink).
+- TP: Target the nearest OPPOSITE zone (sell → nearest demand zone below, buy → nearest supply zone above)
+- FRESH zones are higher probability than TESTED zones
+- If price is between zones with no clear setup, say "no trade — wait for price to reach a zone"
 - The trader uses % risk position sizing, so tight SL = bigger lot size = same risk
-- NEVER suggest SL that would risk more than 2% of a $500 account at 0.01 lots
 - Prefer multiple small scalps over one big swing
 
 IMPORTANT: Place SL/TP based on STRUCTURE, not fixed distances:
@@ -215,15 +240,16 @@ Format as: Level | Price | Significance
 Read EVERY indicator provided. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume showing distribution or accumulation?
 
 ### Trade Scenarios
-This trader is a SCALPER on a small account ($500). Trade sizing must be TIGHT.
+This trader is a SCALPER on a small account. Trade sizing must be TIGHT.
 
-CRITICAL SIZING RULES:
-- SL must be TIGHT and placed at the nearest structural invalidation — NOT wide swing levels
-- For scalps: SL should be 5-15 pips on forex, $8-20 on gold, $200-500 on BTC
-- For intraday: SL can be wider but still structural, not arbitrary
-- TP should be at the NEAREST reaction level for scalps (quick in/out)
+TRADE PLACEMENT RULES (use Supply & Demand zones from the chart):
+- SELL entries: Place SELL LIMIT at the bottom edge of a FRESH (dark red) supply zone. SL just above the top of the zone.
+- BUY entries: Place BUY LIMIT at the top edge of a FRESH (dark green) demand zone. SL just below the bottom of the zone.
+- BREAKOUT entries: SELL STOP below a tested demand zone (light green) that's about to break. BUY STOP above a tested supply zone (light pink).
+- TP: Target the nearest OPPOSITE zone (sell → nearest demand zone below, buy → nearest supply zone above)
+- FRESH zones are higher probability than TESTED zones
+- If price is between zones with no clear setup, say "no trade — wait for price to reach a zone"
 - The trader uses % risk position sizing, so tight SL = bigger lot size = same risk
-- NEVER suggest SL that would risk more than 2% of a $500 account at 0.01 lots
 - Prefer multiple small scalps over one big swing
 
 IMPORTANT: Place SL/TP based on STRUCTURE, not fixed distances:
