@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Brain, BarChart2, Image as ImageIcon, Trash2 } from 'lucide-react'
+import { Brain } from 'lucide-react'
 import PendingOrdersPanel from '@/components/PendingOrdersPanel'
 import { getTradingConfig, saveTradingConfig, LOT_PRESETS } from '@/lib/trading-config'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -27,10 +27,7 @@ import type {
   IndicatorValues,
 } from '@/types'
 
-type Tab = 'live' | 'screenshot' | 'sentiment'
-
 export default function AiPage() {
-  const [tab, setTab] = useState<Tab>('live')
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
   const [history, setHistory] = useState<AiSuggestion[]>([])
 
@@ -459,30 +456,10 @@ export default function AiPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-text-primary">AI Analysis</h1>
-
-      {/* Tabs + Trade Settings */}
+    <div className="space-y-4">
+      {/* Header + Trade Settings */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-      <div className="flex gap-1 bg-surface-1 rounded-lg p-1 w-fit border border-surface-3">
-        {([
-          { key: 'live', label: 'Live Chart', icon: Brain },
-          { key: 'screenshot', label: 'Screenshot', icon: ImageIcon },
-          { key: 'sentiment', label: 'News Sentiment', icon: BarChart2 },
-        ] as const).map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-              tab === key ? 'bg-brand-600 text-white' : 'text-text-secondary hover:text-text-primary'
-            )}
-          >
-            <Icon size={16} />
-            {label}
-          </button>
-        ))}
-      </div>
+      <h1 className="text-2xl font-bold text-text-primary">AI Analysis</h1>
 
       {/* Risk / Lot Size Selector */}
       <div className="flex items-center gap-3 bg-surface-1 rounded-lg px-3 py-1.5 border border-surface-3">
@@ -553,207 +530,107 @@ export default function AiPage() {
       </div>
       </div>
 
-      {/* ── Live Chart Tab ── */}
-      {tab === 'live' && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* Watchlist + History Sidebar */}
-          <div className="lg:col-span-1 space-y-4">
-            <Watchlist
-              onSymbolClick={(sym) => {
-                setSelectedSymbol(sym)
-                setSelectedName('')
-                setChatMessages([])
-                setPendingSuggestionId(null)
-              }}
-            />
+      {/* Main Layout: Left sidebar + Right main */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* LEFT SIDEBAR — News, Watchlist, History */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* Watchlist */}
+          <Watchlist
+            onSymbolClick={(sym) => {
+              setSelectedSymbol(sym)
+              setSelectedName('')
+              setChatMessages([])
+              setPendingSuggestionId(null)
+            }}
+          />
 
-            {/* Analysis History */}
-            {savedSessions.length > 0 && (
-              <div className="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden">
-                <button
-                  onClick={() => setShowHistory(!showHistory)}
-                  className="w-full px-4 py-3 flex items-center justify-between text-sm font-medium text-text-primary hover:bg-surface-2 transition-colors"
-                >
-                  <span>Analysis History ({savedSessions.length})</span>
-                  <span className="text-text-muted text-xs">{showHistory ? 'Hide' : 'Show'}</span>
-                </button>
-                {showHistory && (
-                  <div className="border-t border-surface-3 max-h-64 overflow-y-auto">
-                    {savedSessions.map((session) => (
-                      <button
-                        key={session.id}
-                        onClick={() => {
-                          setSelectedSymbol(session.symbol)
-                          setChatMessages(session.messages)
-                          setPendingSuggestionId(null)
-                        }}
-                        className={cn(
-                          'w-full px-4 py-2.5 text-left hover:bg-surface-2 transition-colors border-b border-surface-3/50 last:border-0',
-                          selectedSymbol === session.symbol && chatMessages.length > 0 && chatMessages[0]?.id === session.messages[0]?.id
-                            ? 'bg-brand-600/10'
-                            : ''
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-text-primary">{session.symbol}</span>
-                          <span className="text-[10px] text-text-muted">
-                            {new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-text-muted truncate mt-0.5">
-                          {session.messages.filter(m => m.role === 'assistant').length} responses
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          {/* News Sentiment — compact */}
+          <SentimentDashboard />
 
-          {/* Main Chart Area */}
-          <div className="lg:col-span-4 space-y-4">
-            <StockSearch
-              onSelect={(symbol, name) => {
-                setSelectedSymbol(symbol)
-                setSelectedName(name)
-                setChatMessages([])
-                setPendingSuggestionId(null)
-              }}
-              placeholder="Search stocks, forex, crypto..."
-            />
-
-            {selectedSymbol && (
-              <>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-bold text-text-primary text-lg">{selectedSymbol}</span>
-                  {selectedName && <span className="text-text-secondary">{selectedName}</span>}
-                </div>
-
-                <AiChart
-                  symbol={selectedSymbol}
-                  interval={interval}
-                  onIntervalChange={setInterval}
-                  indicators={indicators}
-                  onAnalyze={handleAnalyzeChart}
-                  analyzing={chatSending}
-                  tvStudies={tvStudies}
-                  onScreenshotAnalyze={handleScreenshotAnalyze}
-                />
-
-                <AiChat
-                  messages={chatMessages}
-                  onSendMessage={handleChatSend}
-                  onTakeTrade={handleChatTakeTrade}
-                  onSkip={handleChatSkip}
-                  sending={chatSending}
-                  cashBalance={portfolio?.cash_balance || 0}
-                  pendingSuggestionId={pendingSuggestionId}
-                />
-
-                {/* Pending Orders */}
-                <PendingOrdersPanel onOrderTriggered={fetchPortfolio} />
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Screenshot Tab ── */}
-      {tab === 'screenshot' && (
-        <div className="space-y-6">
-          <ImageDropZone onImageReady={handleImageReady} analyzing={analyzing} />
-
-          {screenshotError && (
-            <div className="bg-loss/10 text-loss px-4 py-3 rounded-lg text-sm">{screenshotError}</div>
-          )}
-          {screenshotMessage && (
-            <div className={cn(
-              'px-4 py-3 rounded-lg text-sm',
-              screenshotMessage.type === 'success' ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss'
-            )}>
-              {screenshotMessage.text}
-            </div>
-          )}
-
-          {/* Analysis Display */}
-          {(screenshotText || screenshotAnalysis) && (
-            <AnalysisDisplay
-              text={screenshotText}
-              analysis={screenshotAnalysis}
-              suggestionId={screenshotSuggestionId}
-              cashBalance={portfolio?.cash_balance || 0}
-              onTakeTrade={(symbol, side, qty) => handleScreenshotTakeTrade(symbol, side, qty)}
-              onSkip={handleScreenshotSkip}
-            />
-          )}
-
-          {/* Screenshot History */}
-          {history.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-text-secondary mb-3">Analysis History</h3>
-              <div className="space-y-2">
-                {history.map((s) => (
-                  <div
-                    key={s.id}
-                    className="bg-surface-1 rounded-xl border border-surface-3 p-4 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className={cn(
-                        'w-2 h-2 rounded-full shrink-0',
-                        s.status === 'taken' ? 'bg-profit' : s.status === 'skipped' ? 'bg-text-muted' : 'bg-brand-400'
-                      )} />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-text-primary text-sm">{s.symbol || 'UNKNOWN'}</span>
-                          {s.direction && (
-                            <span className={cn(
-                              'text-xs font-medium px-1.5 py-0.5 rounded',
-                              s.direction === 'buy' ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss'
-                            )}>
-                              {s.direction.toUpperCase()}
-                            </span>
-                          )}
-                          <span className={cn(
-                            'text-xs px-1.5 py-0.5 rounded',
-                            s.status === 'taken' ? 'bg-profit/10 text-profit' : s.status === 'skipped' ? 'bg-surface-3 text-text-muted' : 'bg-brand-600/10 text-brand-400'
-                          )}>
-                            {s.status}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-text-muted mt-0.5">
-                          {s.confidence && <span>Confidence: {s.confidence}/10</span>}
-                          {s.entry_price && <span>Entry: {formatCurrency(s.entry_price)}</span>}
-                          <span>{format(new Date(s.created_at), 'MMM d, HH:mm')}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {s.outcome_pnl !== null && (
-                        <span className={cn('text-sm font-medium', s.outcome_pnl >= 0 ? 'text-profit' : 'text-loss')}>
-                          {formatCurrency(s.outcome_pnl)}
-                        </span>
+          {/* Analysis History */}
+          {savedSessions.length > 0 && (
+            <div className="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden">
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="w-full px-4 py-3 flex items-center justify-between text-sm font-medium text-text-primary hover:bg-surface-2 transition-colors"
+              >
+                <span>History ({savedSessions.length})</span>
+                <span className="text-text-muted text-xs">{showHistory ? 'Hide' : 'Show'}</span>
+              </button>
+              {showHistory && (
+                <div className="border-t border-surface-3 max-h-64 overflow-y-auto">
+                  {savedSessions.map((session) => (
+                    <button
+                      key={session.id}
+                      onClick={() => {
+                        setSelectedSymbol(session.symbol)
+                        setChatMessages(session.messages)
+                        setPendingSuggestionId(null)
+                      }}
+                      className={cn(
+                        'w-full px-4 py-2.5 text-left hover:bg-surface-2 transition-colors border-b border-surface-3/50 last:border-0',
+                        selectedSymbol === session.symbol && chatMessages.length > 0 && chatMessages[0]?.id === session.messages[0]?.id
+                          ? 'bg-brand-600/10' : ''
                       )}
-                      <button
-                        onClick={() => handleDeleteSuggestion(s.id)}
-                        className="p-1.5 rounded-lg hover:bg-loss/10 text-text-muted hover:text-loss transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-text-primary">{session.symbol}</span>
+                        <span className="text-[10px] text-text-muted">
+                          {new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-text-muted truncate mt-0.5">
+                        {session.messages.filter(m => m.role === 'assistant').length} responses
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+
+          {/* Pending Orders */}
+          <PendingOrdersPanel onOrderTriggered={fetchPortfolio} />
         </div>
-      )}
 
-      {/* ── Sentiment Tab ── */}
-      {tab === 'sentiment' && <SentimentDashboard />}
+        {/* RIGHT MAIN — Search, Capture, Chat */}
+        <div className="lg:col-span-9 space-y-4">
+          <StockSearch
+            onSelect={(symbol, name) => {
+              setSelectedSymbol(symbol)
+              setSelectedName(name)
+              setChatMessages([])
+              setPendingSuggestionId(null)
+            }}
+            placeholder="Search forex, metals, crypto..."
+          />
 
-      {/* AI Stats */}
+          {selectedSymbol && (
+            <>
+              <AiChart
+                symbol={selectedSymbol}
+                interval={interval}
+                onIntervalChange={setInterval}
+                indicators={indicators}
+                onAnalyze={handleAnalyzeChart}
+                analyzing={chatSending}
+                tvStudies={tvStudies}
+                onScreenshotAnalyze={handleScreenshotAnalyze}
+              />
+
+              <AiChat
+                messages={chatMessages}
+                onSendMessage={handleChatSend}
+                onTakeTrade={handleChatTakeTrade}
+                onSkip={handleChatSkip}
+                sending={chatSending}
+                cashBalance={portfolio?.cash_balance || 0}
+                pendingSuggestionId={pendingSuggestionId}
+              />
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
