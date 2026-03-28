@@ -7,7 +7,8 @@
     "tabs",
     "activeTab",
     "scripting",
-    "storage"
+    "storage",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "*://*.tradingview.com/*",

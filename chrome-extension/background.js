@@ -1,4 +1,4 @@
-// AI Trader - Background Service Worker
+// AI Trader - Background Service Worker v3
 
 const TV_SYMBOL_MAP = {
   'EURUSD': 'OANDA:EURUSD', 'GBPUSD': 'OANDA:GBPUSD', 'USDJPY': 'OANDA:USDJPY',
@@ -11,17 +11,18 @@ const TV_SYMBOL_MAP = {
 
 function getTVSymbol(symbol) {
   const clean = symbol.replace('/', '').toUpperCase();
-  return TV_SYMBOL_MAP[clean] || `FX:${clean}`;
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return TV_SYMBOL_MAP[clean] || clean;
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'CAPTURE_REQUEST') {
-    const originTabId = sender.tab.id;
-    const originWindowId = sender.tab.windowId;
+    console.log('Capture request received:', message.symbol);
+    chrome.storage.local.set({
+      captureStatus: 'capturing',
+      captureScreenshots: [],
+      captureProgress: 'Starting...',
+    });
+
     const timeframes = message.timeframes || [
       { label: '5m', interval: '5' },
       { label: '15m', interval: '15' },
@@ -29,96 +30,99 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       { label: '4H', interval: '240' },
     ];
 
-    // Clear any previous results
-    chrome.storage.local.set({ captureStatus: 'capturing', captureScreenshots: [], captureProgress: 'Starting...' });
-    captureAll(message.symbol, timeframes, originTabId, originWindowId);
+    doCapture(message.symbol, timeframes, sender.tab.id, sender.tab.windowId);
     return true;
   }
 
   if (message.type === 'CHECK_CAPTURE_STATUS') {
     chrome.storage.local.get(['captureStatus', 'captureScreenshots', 'captureProgress'], (data) => {
-      sendResponse(data);
+      sendResponse(data || {});
     });
-    return true; // async response
+    return true;
   }
 });
 
-async function captureAll(symbol, timeframes, originTabId, originWindowId) {
+async function doCapture(symbol, timeframes, originTabId, originWindowId) {
   const tvSymbol = getTVSymbol(symbol);
   const screenshots = [];
+  let openTabId = null;
 
-  for (let i = 0; i < timeframes.length; i++) {
-    const tf = timeframes[i];
-    chrome.storage.local.set({ captureProgress: `Capturing ${tf.label} (${i + 1}/${timeframes.length})...` });
+  try {
+    // Open ONE tab and reuse it for all timeframes
+    const firstUrl = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}&interval=${timeframes[0].interval}`;
+    console.log('Opening tab:', firstUrl);
 
-    try {
-      const screenshot = await captureOne(tvSymbol, tf);
-      screenshots.push(screenshot);
-    } catch (err) {
-      console.error(`Failed ${tf.label}:`, err.message);
+    const tab = await chrome.tabs.create({ url: firstUrl, active: true });
+    openTabId = tab.id;
+
+    // Wait for initial page load
+    await delay(5000);
+
+    for (let i = 0; i < timeframes.length; i++) {
+      const tf = timeframes[i];
+      const progress = `Capturing ${tf.label} (${i + 1}/${timeframes.length})...`;
+      console.log(progress);
+      chrome.storage.local.set({ captureProgress: progress });
+
+      try {
+        // Navigate to the timeframe URL
+        if (i > 0) {
+          const url = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}&interval=${tf.interval}`;
+          await chrome.tabs.update(openTabId, { url });
+          await delay(5000); // Wait for chart to load
+        }
+
+        // Make sure window is focused
+        try {
+          await chrome.windows.update(tab.windowId, { focused: true });
+        } catch (e) { console.log('Focus failed:', e); }
+
+        await delay(1000);
+
+        // Take screenshot
+        const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+        console.log('Captured', tf.label, '- size:', dataUrl.length);
+
+        screenshots.push({
+          timeframe: tf.label,
+          base64: dataUrl.split(',')[1],
+          mimeType: 'image/png',
+          dataUrl: dataUrl,
+        });
+
+      } catch (err) {
+        console.error('Capture failed for', tf.label, ':', err.message || err);
+      }
     }
+  } catch (err) {
+    console.error('Overall capture error:', err.message || err);
   }
 
-  // Store results and mark done
-  chrome.storage.local.set({
-    captureStatus: 'done',
-    captureScreenshots: screenshots,
-    captureProgress: `Done - ${screenshots.length} screenshots`,
-  });
+  // Close the tab
+  if (openTabId) {
+    try {
+      await chrome.tabs.remove(openTabId);
+      console.log('Tab closed');
+    } catch (e) {
+      console.log('Tab close failed:', e);
+    }
+  }
 
   // Focus back on original tab
   try {
     await chrome.tabs.update(originTabId, { active: true });
     await chrome.windows.update(originWindowId, { focused: true });
-  } catch (e) { /* tab might be closed */ }
-}
+  } catch (e) { console.log('Refocus failed:', e); }
 
-async function captureOne(tvSymbol, tf) {
-  const url = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}&interval=${tf.interval}`;
-  const tab = await chrome.tabs.create({ url, active: true });
-
-  try {
-    // Wait for chart to load
-    await waitForChart(tab.id);
-
-    // Extra time for indicators
-    await sleep(3000);
-
-    // Ensure window is focused for capture
-    await chrome.windows.update(tab.windowId, { focused: true });
-    await sleep(300);
-
-    // Capture
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
-
-    return {
-      timeframe: tf.label,
-      base64: dataUrl.split(',')[1],
-      mimeType: 'image/png',
-      dataUrl,
-    };
-  } finally {
-    try { await chrome.tabs.remove(tab.id); } catch (e) {}
-  }
-}
-
-function waitForChart(tabId) {
-  return new Promise((resolve) => {
-    let checks = 0;
-    const iv = setInterval(async () => {
-      checks++;
-      try {
-        const results = await chrome.scripting.executeScript({
-          target: { tabId },
-          func: () => document.querySelectorAll('canvas').length > 0,
-        });
-        if ((results?.[0]?.result) || checks >= 25) {
-          clearInterval(iv);
-          resolve();
-        }
-      } catch {
-        if (checks >= 25) { clearInterval(iv); resolve(); }
-      }
-    }, 500);
+  // Save results
+  console.log('Saving', screenshots.length, 'screenshots to storage');
+  chrome.storage.local.set({
+    captureStatus: 'done',
+    captureScreenshots: screenshots,
+    captureProgress: `Done - ${screenshots.length} screenshots`,
   });
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
