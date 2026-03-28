@@ -1,5 +1,4 @@
 // AI Trader - Background Service Worker
-// Orchestrates TradingView chart capture across timeframes
 
 const TV_SYMBOL_MAP = {
   'EURUSD': 'OANDA:EURUSD', 'GBPUSD': 'OANDA:GBPUSD', 'USDJPY': 'OANDA:USDJPY',
@@ -19,10 +18,10 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Listen for capture requests
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'CAPTURE_REQUEST') {
     const originTabId = sender.tab.id;
+    const originWindowId = sender.tab.windowId;
     const timeframes = message.timeframes || [
       { label: '5m', interval: '5' },
       { label: '15m', interval: '15' },
@@ -30,119 +29,95 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       { label: '4H', interval: '240' },
     ];
 
-    captureAllTimeframes(message.symbol, timeframes, originTabId);
+    // Clear any previous results
+    chrome.storage.local.set({ captureStatus: 'capturing', captureScreenshots: [], captureProgress: 'Starting...' });
+    captureAll(message.symbol, timeframes, originTabId, originWindowId);
     return true;
+  }
+
+  if (message.type === 'CHECK_CAPTURE_STATUS') {
+    chrome.storage.local.get(['captureStatus', 'captureScreenshots', 'captureProgress'], (data) => {
+      sendResponse(data);
+    });
+    return true; // async response
   }
 });
 
-async function captureAllTimeframes(symbol, timeframes, originTabId) {
+async function captureAll(symbol, timeframes, originTabId, originWindowId) {
   const tvSymbol = getTVSymbol(symbol);
   const screenshots = [];
 
-  // Send progress updates
-  function sendProgress(msg) {
-    try {
-      chrome.tabs.sendMessage(originTabId, { type: 'CAPTURE_PROGRESS', message: msg });
-    } catch (e) { /* ignore */ }
-  }
-
   for (let i = 0; i < timeframes.length; i++) {
     const tf = timeframes[i];
-    sendProgress(`Capturing ${tf.label} (${i + 1}/${timeframes.length})...`);
+    chrome.storage.local.set({ captureProgress: `Capturing ${tf.label} (${i + 1}/${timeframes.length})...` });
 
     try {
-      const screenshot = await captureOneTimeframe(tvSymbol, tf);
+      const screenshot = await captureOne(tvSymbol, tf);
       screenshots.push(screenshot);
     } catch (err) {
-      console.error(`Failed to capture ${tf.label}:`, err.message);
-      sendProgress(`Failed ${tf.label}: ${err.message}`);
+      console.error(`Failed ${tf.label}:`, err.message);
     }
   }
 
-  // Send results back
-  try {
-    chrome.tabs.sendMessage(originTabId, {
-      type: 'CAPTURE_RESULT',
-      screenshots,
-    });
-  } catch (err) {
-    console.error('Failed to send results back:', err);
-  }
+  // Store results and mark done
+  chrome.storage.local.set({
+    captureStatus: 'done',
+    captureScreenshots: screenshots,
+    captureProgress: `Done - ${screenshots.length} screenshots`,
+  });
 
-  // Focus back on the original tab
+  // Focus back on original tab
   try {
-    chrome.tabs.update(originTabId, { active: true });
-  } catch (e) { /* ignore */ }
+    await chrome.tabs.update(originTabId, { active: true });
+    await chrome.windows.update(originWindowId, { focused: true });
+  } catch (e) { /* tab might be closed */ }
 }
 
-async function captureOneTimeframe(tvSymbol, tf) {
+async function captureOne(tvSymbol, tf) {
   const url = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}&interval=${tf.interval}`;
-
-  // Create tab
   const tab = await chrome.tabs.create({ url, active: true });
 
   try {
     // Wait for chart to load
-    await waitForChartLoad(tab.id);
+    await waitForChart(tab.id);
 
-    // Extra wait for indicators to finish drawing
+    // Extra time for indicators
     await sleep(3000);
 
-    // Focus the tab's window to ensure captureVisibleTab works
+    // Ensure window is focused for capture
     await chrome.windows.update(tab.windowId, { focused: true });
-    await sleep(500);
+    await sleep(300);
 
-    // Capture screenshot
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
-      format: 'png',
-    });
-
-    const base64 = dataUrl.split(',')[1];
+    // Capture
+    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
 
     return {
       timeframe: tf.label,
-      base64,
+      base64: dataUrl.split(',')[1],
       mimeType: 'image/png',
       dataUrl,
     };
   } finally {
-    // Always close the tab
-    try {
-      await chrome.tabs.remove(tab.id);
-    } catch (e) {
-      console.error('Failed to close tab:', e);
-    }
+    try { await chrome.tabs.remove(tab.id); } catch (e) {}
   }
 }
 
-function waitForChartLoad(tabId) {
-  return new Promise((resolve, reject) => {
+function waitForChart(tabId) {
+  return new Promise((resolve) => {
     let checks = 0;
-    const maxChecks = 30; // 30 * 500ms = 15 seconds max
-
-    const checkInterval = setInterval(async () => {
+    const iv = setInterval(async () => {
       checks++;
-
       try {
         const results = await chrome.scripting.executeScript({
           target: { tabId },
-          func: () => {
-            const canvases = document.querySelectorAll('canvas');
-            const spinner = document.querySelector('[class*="spinner"]') ||
-                           document.querySelector('[class*="loading"]');
-            return canvases.length > 0 && !spinner;
-          },
+          func: () => document.querySelectorAll('canvas').length > 0,
         });
-
-        if ((results && results[0] && results[0].result) || checks >= maxChecks) {
-          clearInterval(checkInterval);
+        if ((results?.[0]?.result) || checks >= 25) {
+          clearInterval(iv);
           resolve();
         }
-      } catch (err) {
-        if (checks >= maxChecks) {
-          clearInterval(checkInterval);
-          resolve(); // Still try to capture even if check fails
-        }
+      } catch {
+        if (checks >= 25) { clearInterval(iv); resolve(); }
       }
     }, 500);
   });

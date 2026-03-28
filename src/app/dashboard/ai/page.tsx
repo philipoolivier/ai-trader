@@ -35,7 +35,7 @@ export default function AiPage() {
   const [history, setHistory] = useState<AiSuggestion[]>([])
 
   // Live Chart state
-  const [selectedSymbol, setSelectedSymbol] = useState('')
+  const [selectedSymbol, setSelectedSymbol] = useState('XAUUSD')
   const [selectedName, setSelectedName] = useState('')
   const [interval, setInterval] = useState('5')
   const [indicators, setIndicators] = useState<IndicatorConfig[]>([])
