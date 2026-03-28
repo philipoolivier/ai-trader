@@ -90,24 +90,6 @@ export async function POST(request: Request) {
       aiSuggestionId: validSuggestionId || undefined,
     })
 
-    // Also create a pending_orders record for MT4 EA to pick up
-    try {
-      const currentPrice = await getPrice(symbol)
-      await supabase.from('pending_orders').insert({
-        symbol: symbol.toUpperCase(),
-        side,
-        lot_size: lots,
-        entry_price: currentPrice,
-        stop_loss: stopLoss ? parseFloat(stopLoss) : (suggestion?.stop_loss ? parseFloat(suggestion.stop_loss) : null),
-        take_profit: takeProfit ? parseFloat(takeProfit) : (suggestion?.take_profit ? parseFloat(suggestion.take_profit) : null),
-        order_type: side === 'buy' ? 'buy_stop' : 'sell_stop', // EA treats as market since price = current
-        status: 'pending',
-        ai_suggestion_id: validSuggestionId,
-      })
-    } catch (e) {
-      console.error('Failed to create MT4 signal for market order:', e)
-    }
-
     if (suggestion && suggestion.status === 'pending' && validSuggestionId) {
       await supabase
         .from('ai_suggestions')
