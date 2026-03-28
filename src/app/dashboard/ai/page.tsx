@@ -47,7 +47,7 @@ export default function AiPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [chatSending, setChatSending] = useState(false)
   const [tradeLotSize, setTradeLotSize] = useState(0.01)
-  const [riskMode, setRiskMode] = useState<'fixed' | 'percent'>('fixed')
+  const [riskMode, setRiskMode] = useState<'fixed' | 'percent'>('percent')
   const [riskPercent, setRiskPercent] = useState(2)
   const [currentOhlc, setCurrentOhlc] = useState<OHLC[]>([])
   const [currentIndicatorValues, setCurrentIndicatorValues] = useState<IndicatorValues[]>([])
