@@ -54,21 +54,31 @@ The chart has these indicators — read them carefully:
 - BLUE vertical lines = session/day break lines (where a new trading day starts)
 - Read any labeled horizontal lines (PDH, PDL, etc.) with their exact prices
 
-Build a table of every key level and zone visible:
-| Level/Zone | Price Range | Type | Status |
-|------------|-------------|------|--------|
-| Supply Zone | $X - $Y | Fresh/Tested | Short entry / SL placement |
-| Demand Zone | $X - $Y | Fresh/Tested | Long entry / SL placement |
-| Session High | $X | Asia/London/NY | Liquidity target |
-| PDH/PDL | $X | Daily level | Key S/R |
+IMPORTANT: Each screenshot is a DIFFERENT TIMEFRAME. Identify which timeframe each screenshot shows (5m, 15m, 1H, 4H) from the chart header or candle size.
 
-### Indicator & Zone Reading
-For each visible zone and indicator, tell me:
-- Which supply/demand zones are FRESH (dark colored) vs TESTED (light colored)?
-- Where are the closest fresh zones above and below current price?
-- Which session liquidity has been swept? Which hasn't?
-- Are we inside a zone or between zones?
-- What does the overall zone structure tell us about institutional positioning?
+Build a table of EVERY zone visible across ALL timeframes. For each zone, specify:
+| Zone | Price Range | Timeframe | Fresh/Tested | Distance from Current Price |
+|------|-------------|-----------|--------------|---------------------------|
+| Supply | $X - $Y | 4H | Fresh (dark red) | +$XX above |
+| Supply | $X - $Y | 15m | Tested (light pink) | +$XX above |
+| Demand | $X - $Y | 1H | Fresh (dark green) | -$XX below |
+| Demand | $X - $Y | 5m | Fresh (dark green) | -$XX below |
+
+Highlight zones that OVERLAP across timeframes — these are highest conviction:
+- A 5m demand zone inside a 1H demand zone = VERY strong
+- A 15m supply zone at the same level as a 4H supply zone = VERY strong
+
+### Zone Proximity Analysis
+- Which is the NEAREST fresh zone above current price? (exact price + timeframe)
+- Which is the NEAREST fresh zone below current price? (exact price + timeframe)
+- Is price currently INSIDE any zone? If yes, which one and what does that mean?
+- How far is price from each zone in dollar/pip terms?
+- Which zones have multi-timeframe confluence?
+
+### Session & Liquidity Reading
+- Which session highs/lows have been SWEPT (price wicked through then returned)?
+- Which session highs/lows are still INTACT (untouched liquidity)?
+- Intact session liquidity = targets for institutional moves
 
 ### Supply & Demand Zone Strategy
 Apply these S&D trading rules when analyzing the chart:

@@ -72,42 +72,41 @@ async function doCapture(symbol, timeframes, originTabId, originWindowId) {
           await delay(5000);
         }
 
-        // Auto-fit the chart — click the auto-scale button and reset view
+        // Auto-fit the chart
         try {
           await chrome.scripting.executeScript({
             target: { tabId: openTabId },
             func: () => {
-              // Method 1: Click the "auto" scale button on the price axis
-              const btns = document.querySelectorAll('button, div[role="button"]');
-              for (const btn of btns) {
-                const text = btn.textContent || btn.getAttribute('aria-label') || '';
-                if (text.toLowerCase().includes('auto') || text.toLowerCase().includes('fit')) {
-                  btn.click();
-                  break;
-                }
+              // Find all canvases — the main chart canvas is usually the largest
+              const canvases = document.querySelectorAll('canvas');
+              let mainCanvas = null;
+              let maxArea = 0;
+              canvases.forEach(c => {
+                const area = c.width * c.height;
+                if (area > maxArea) { maxArea = area; mainCanvas = c; }
+              });
+
+              if (mainCanvas) {
+                // Double-click on the price scale (right side) to auto-fit vertically
+                const rect = mainCanvas.getBoundingClientRect();
+                const rightEdge = rect.right - 10;
+                const centerY = rect.top + rect.height / 2;
+
+                mainCanvas.dispatchEvent(new MouseEvent('dblclick', {
+                  clientX: rightEdge, clientY: centerY,
+                  bubbles: true, cancelable: true,
+                }));
               }
 
-              // Method 2: Double-click on the price axis to auto-fit
-              const priceAxis = document.querySelector('.chart-markup-table .pane-legend') ||
-                               document.querySelector('canvas');
-              if (priceAxis) {
-                const rect = priceAxis.getBoundingClientRect();
-                // Double-click near the right edge (price scale area)
-                const dblClick = new MouseEvent('dblclick', {
-                  clientX: rect.right - 30,
-                  clientY: rect.top + rect.height / 2,
-                  bubbles: true,
-                });
-                priceAxis.dispatchEvent(dblClick);
-              }
-
-              // Method 3: Keyboard shortcut Alt+R for reset chart
-              document.dispatchEvent(new KeyboardEvent('keydown', {
-                key: 'r', altKey: true, bubbles: true, keyCode: 82
+              // Also try keyboard shortcuts
+              const chartEl = document.querySelector('[class*="chart-container"]') || document.body;
+              // Shift+Alt+F = fit all data
+              chartEl.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'f', shiftKey: true, altKey: true, bubbles: true,
               }));
             },
           });
-        } catch (e) { console.log('Auto-fit failed:', e); }
+        } catch (e) { console.log('Auto-fit:', e.message); }
 
         await delay(2000);
 
