@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { analyzeChart } from '@/lib/claude'
 import { supabase } from '@/lib/supabase'
 import { getIndicators, formatIndicatorsForClaude } from '@/lib/twelvedata'
+import { getEconomicCalendar, getCurrentSession } from '@/lib/finnhub'
 
 const DEFAULT_USER_ID = 'default-user'
 const INITIAL_BALANCE = 500
@@ -24,18 +25,46 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Claude API key is not configured' }, { status: 500 })
     }
 
-    // Fetch live indicator data if symbol is provided (timeout after 10s)
+    // Fetch live data in parallel: indicators, economic calendar, session
     let indicatorContext = ''
-    if (symbol) {
-      try {
-        const tvInterval = interval || '5min'
-        const indicatorPromise = getIndicators(symbol, tvInterval)
-        const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
-        const indicatorData = await Promise.race([indicatorPromise, timeoutPromise])
-        indicatorContext = formatIndicatorsForClaude(indicatorData)
-      } catch {
-        // Indicators are optional — don't block analysis
+    try {
+      const [indicatorResult, calendarResult] = await Promise.all([
+        symbol
+          ? Promise.race([
+              getIndicators(symbol, interval || '5min'),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000)),
+            ])
+          : Promise.resolve(null),
+        getEconomicCalendar().catch(() => []),
+      ])
+
+      const parts: string[] = []
+
+      // Session context
+      const session = getCurrentSession()
+      parts.push(`## Current Session: ${session.name}
+${session.description}
+${session.note}`)
+
+      // Indicators (ATR + ADX)
+      if (indicatorResult) {
+        const indText = formatIndicatorsForClaude(indicatorResult)
+        if (indText) parts.push(indText)
       }
+
+      // Economic calendar
+      if (calendarResult && calendarResult.length > 0) {
+        parts.push(`## Upcoming Economic Events (next 24h)
+${calendarResult.map(e =>
+  `- **${e.time}** ${e.country} — ${e.event} (${e.impact} impact)${e.estimate ? ` Est: ${e.estimate}` : ''}${e.previous ? ` Prev: ${e.previous}` : ''}`
+).join('\n')}
+
+Factor these events into trade timing. Avoid entering just before high-impact events. Consider closing positions or tightening stops.`)
+      }
+
+      indicatorContext = parts.join('\n\n')
+    } catch {
+      // All context is optional — don't block analysis
     }
 
     // Analyze chart with Claude — returns full text analysis + optional structured data
