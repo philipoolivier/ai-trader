@@ -75,8 +75,9 @@ void PollForSignals()
    }
 
    string response = CharArrayToString(result);
-   if(res != 200) { Print("API error (", res, "): ", response); return; }
+   if(res != 200) { Print("API error (", res, "): ", StringSubstr(response, 0, 200)); return; }
 
+   Print("Poll OK (", res, ") — processing signals...");
    ProcessSignals(response);
 }
 
@@ -198,8 +199,15 @@ void SyncClosedTrades()
 //+------------------------------------------------------------------+
 void ProcessSignals(string json)
 {
+   // Log first 500 chars of response
+   Print("API response (", StringLen(json), " chars): ", StringSubstr(json, 0, 500));
+
    int signalsStart = StringFind(json, "\"signals\":[");
-   if(signalsStart == -1) return;
+   if(signalsStart == -1)
+   {
+      Print("No 'signals' array found in response");
+      return;
+   }
 
    int arrStart = StringFind(json, "[", signalsStart);
    int arrEnd = FindMatchingBracket(json, arrStart);
@@ -235,8 +243,19 @@ void ProcessOneSignal(string json)
    double tp     = GetJsonDouble(json, "tp");
    double lots   = GetJsonDouble(json, "lots");
 
-   if(IsProcessed(id)) return;
-   if(symbol == "" || id == "") return;
+   Print("Signal received: id=", id, " sym=", symbol, " side=", side, " type=", type,
+         " entry=", entry, " sl=", sl, " tp=", tp, " lots=", lots);
+
+   if(IsProcessed(id))
+   {
+      Print("Signal ", id, " already processed — skipping");
+      return;
+   }
+   if(symbol == "" || id == "")
+   {
+      Print("Empty symbol or id — skipping");
+      return;
+   }
    if(lots <= 0 || lots > MaxLotSize) lots = MathMin(0.01, MaxLotSize);
 
    // Validate lot size against broker's min/max/step
@@ -343,8 +362,9 @@ void ProcessOneSignal(string json)
 
    if(ticket > 0)
    {
-      Print("Order placed. Ticket: ", ticket);
+      Print("Order placed successfully. Ticket: ", ticket);
       ConfirmSignal(id, ticket, "executed");
+      MarkProcessed(id); // Only mark as processed on success
    }
    else
    {
@@ -368,15 +388,23 @@ void ProcessOneSignal(string json)
             else
                Print("SL/TP modify failed: ", GetLastError(), " — order placed without stops");
             ConfirmSignal(id, ticket, "executed");
+            MarkProcessed(id); // Only mark as processed on success
          }
          else
          {
-            Print("Retry also failed: ", GetLastError());
+            Print("Retry also failed: ", GetLastError(), " — will retry next poll");
+            // Do NOT mark as processed — will retry next poll cycle
          }
       }
+      else if(err == 132 || err == 133)
+      {
+         // Market closed or trade disabled — don't retry
+         Print("Market closed or trade disabled — cancelling signal");
+         ConfirmSignal(id, 0, "cancelled");
+         MarkProcessed(id);
+      }
+      // For other errors (134=no money, 135=price changed, etc.) — will retry
    }
-
-   MarkProcessed(id);
 }
 
 //+------------------------------------------------------------------+
