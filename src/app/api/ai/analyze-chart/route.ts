@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { analyzeChart } from '@/lib/claude'
 import { supabase } from '@/lib/supabase'
 import { getIndicators, formatIndicatorsForClaude } from '@/lib/twelvedata'
-import { getEconomicCalendar, getCurrentSession } from '@/lib/finnhub'
+import { getEconomicCalendar, getSessionFromTimestamp } from '@/lib/finnhub'
+import { getQuote } from '@/lib/twelvedata'
 
 const DEFAULT_USER_ID = 'default-user'
 const INITIAL_BALANCE = 500
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     // Fetch live data in parallel: indicators, economic calendar, session
     let indicatorContext = ''
     try {
-      const [indicatorResult, calendarResult] = await Promise.all([
+      const [indicatorResult, calendarResult, quoteResult] = await Promise.all([
         symbol
           ? Promise.race([
               getIndicators(symbol, interval || '5min'),
@@ -36,13 +37,19 @@ export async function POST(request: Request) {
             ])
           : Promise.resolve(null),
         getEconomicCalendar().catch(() => []),
+        symbol
+          ? getQuote(symbol).catch(() => null)
+          : Promise.resolve(null),
       ])
 
       const parts: string[] = []
 
-      // Session context
-      const session = getCurrentSession()
-      parts.push(`## Current Session: ${session.name}
+      // Session context from market timestamp (not user's clock)
+      const marketTimestamp = quoteResult?.timestamp || Math.floor(Date.now() / 1000)
+      const session = getSessionFromTimestamp(marketTimestamp)
+      const marketPrice = quoteResult?.price ? `$${quoteResult.price}` : 'unknown'
+      parts.push(`## Market Time & Session: ${session.name}
+Current price: ${marketPrice}
 ${session.description}
 ${session.note}`)
 

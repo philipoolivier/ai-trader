@@ -128,14 +128,58 @@ export async function getEconomicCalendar(): Promise<
   }
 }
 
-// Session context — tells Claude to read from the chart instead of guessing
-export function getCurrentSession(): { name: string; description: string; note: string } {
-  const now = new Date()
-  const utcStr = now.toUTCString()
+// Session context from market timestamp
+export function getSessionFromTimestamp(timestamp: number | string): { name: string; description: string; note: string } {
+  // TwelveData returns UNIX timestamp or datetime string
+  const date = typeof timestamp === 'number'
+    ? new Date(timestamp * 1000)
+    : new Date(timestamp)
 
-  return {
-    name: `Current UTC time: ${utcStr}`,
-    description: 'Determine the active session from the SESSION BOXES on the chart (Yellow=Asia, Blue=London, Red/Purple=NY). The rightmost session box that is still forming = the current session.',
-    note: `Session reference (UTC): Asia 22:00-07:00, London 07:00-16:00, NY 12:00-21:00, London/NY Overlap 12:00-16:00. The chart broker may use a different timezone — read the session boxes directly, do not rely on the clock.`,
+  const utcHour = date.getUTCHours()
+  const utcMin = date.getUTCMinutes()
+  const utcTime = `${String(utcHour).padStart(2, '0')}:${String(utcMin).padStart(2, '0')} UTC`
+  const marketDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getUTCDay()]
+
+  // Weekend check
+  const day = date.getUTCDay()
+  if (day === 0 || day === 6) {
+    return {
+      name: `Market Closed (${marketDay} ${utcTime})`,
+      description: 'Weekend — forex/metals markets closed. Crypto may still trade.',
+      note: 'No trading. Analyze for Monday open preparation.',
+    }
   }
+
+  // Session times (UTC)
+  let session = ''
+  let desc = ''
+  let note = ''
+
+  if (utcHour >= 12 && utcHour < 16) {
+    session = `London/NY Overlap (${utcTime})`
+    desc = 'Highest volume and volatility. Best time for breakouts and trend continuation.'
+    note = 'Most liquid session — strong zone reactions, clean moves. Best scalping window.'
+  } else if (utcHour >= 7 && utcHour < 12) {
+    session = `London Session (${utcTime})`
+    desc = 'High volume. Institutional activity. Key reversals and trend starts.'
+    note = 'London often sweeps Asia highs/lows before reversing. Watch for liquidity grabs at Asia range.'
+  } else if (utcHour >= 16 && utcHour < 21) {
+    session = `New York PM (${utcTime})`
+    desc = 'Declining volume after overlap. Often consolidates or extends earlier moves.'
+    note = 'Tighter stops. Less conviction on new entries. Better for managing existing trades.'
+  } else if (utcHour >= 12 && utcHour < 21) {
+    session = `New York Session (${utcTime})`
+    desc = 'Second highest volume. Often continues or reverses London direction.'
+    note = 'NY open (12:00-14:00 UTC) can be volatile. After 16:00 UTC volume drops.'
+  } else if (utcHour >= 22 || utcHour < 7) {
+    session = `Asia/Pacific Session (${utcTime})`
+    desc = 'Lower volume. Range-building. Sets up liquidity for London.'
+    note = 'Asia highs/lows will likely get swept in London. Smaller moves, wider spreads.'
+  } else {
+    session = `Pre-London (${utcTime})`
+    desc = 'Transition period. Early European traders entering.'
+    note = 'Watch for early directional signals ahead of London open.'
+  }
+
+  return { name: session, description: desc, note: note }
 }
