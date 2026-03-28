@@ -111,6 +111,12 @@ Apply these S&D trading rules when analyzing the chart:
 - All nearby zones are tested (light colored) — wait for fresh zones to form.
 - ADX < 20 with no clear zone reaction — choppy, avoid.
 
+### Forward-Looking: HTF Zone Plays
+If you see fresh zones on higher timeframes (1H, 4H) that price hasn't reached yet, create ADDITIONAL trade scenarios for when price eventually reaches those zones. These are "set and forget" pending orders:
+- "If price rallies to the 4H fresh supply at $X, SELL LIMIT at zone edge"
+- "If price drops to the 1H fresh demand at $Y, BUY LIMIT at zone edge"
+Mark these clearly as HTF plays with wider targets.
+
 ### Trade Scenarios
 Apply the S&D strategy above. If no clear setup exists, say "no trade — wait for price to reach a zone."
 
@@ -295,6 +301,12 @@ Apply these S&D trading rules when analyzing the chart:
 - Price is in the middle between zones with no nearby zone to trade off.
 - All nearby zones are tested (light colored) — wait for fresh zones to form.
 - ADX < 20 with no clear zone reaction — choppy, avoid.
+
+### Forward-Looking: HTF Zone Plays
+If you see fresh zones on higher timeframes (1H, 4H) that price hasn't reached yet, create ADDITIONAL trade scenarios for when price eventually reaches those zones. These are "set and forget" pending orders:
+- "If price rallies to the 4H fresh supply at $X, SELL LIMIT at zone edge"
+- "If price drops to the 1H fresh demand at $Y, BUY LIMIT at zone edge"
+Mark these clearly as HTF plays with wider targets.
 
 ### Trade Scenarios
 Apply the S&D strategy above. If no clear setup exists, say "no trade — wait for price to reach a zone."
