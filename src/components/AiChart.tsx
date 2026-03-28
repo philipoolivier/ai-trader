@@ -203,32 +203,6 @@ export default function AiChart({
 
   return (
     <div className="space-y-3">
-      {/* Timeframe selector for live chart */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex gap-1">
-          {ALL_TIMEFRAMES.map(tf => (
-            <button
-              key={tf.value}
-              onClick={() => onIntervalChange(tf.value)}
-              className={cn(
-                'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                interval === tf.value ? 'bg-brand-600 text-white' : 'bg-surface-2 text-text-secondary hover:text-text-primary'
-              )}
-            >
-              {tf.label}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={handleAnalyze}
-          disabled={analyzing}
-          className="flex items-center gap-2 px-4 py-2 bg-surface-2 hover:bg-surface-3 disabled:opacity-50 text-text-primary text-sm font-medium rounded-lg transition-colors border border-surface-3"
-        >
-          {analyzing ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
-          {analyzing ? 'Analyzing...' : 'Analyze Data'}
-        </button>
-      </div>
-
       {/* Chart area */}
       <div ref={chartContainerRef}>
         {extensionReady ? (
