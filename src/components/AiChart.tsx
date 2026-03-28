@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { Brain, Loader2, Camera, X } from 'lucide-react'
+import { Brain, Loader2, Camera, X, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import TradingViewChart from '@/components/TradingViewChart'
 import { computeIndicator } from '@/lib/indicators'
@@ -55,8 +55,37 @@ export default function AiChart({
   const [snapshots, setSnapshots] = useState<ChartSnapshot[]>([])
   const [allSnapshots, setAllSnapshots] = useState<Record<string, ChartSnapshot[]>>({})
   const [capturing, setCapturing] = useState(false)
+  const [autoCapturing, setAutoCapturing] = useState(false)
+  const [extensionReady, setExtensionReady] = useState(false)
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const prevSymbolRef = useRef(symbol)
+
+  // Listen for Chrome extension messages
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'AI_TRADER_EXTENSION_READY') {
+        setExtensionReady(true)
+      }
+      if (event.data?.type === 'AI_TRADER_CAPTURE_RESULT') {
+        const screenshots = event.data.screenshots as { timeframe: string; base64: string; mimeType: string; dataUrl: string }[]
+        const newSnapshots = screenshots.map(ss => ({
+          id: `auto-${Date.now()}-${ss.timeframe}`,
+          base64: ss.base64,
+          mimeType: ss.mimeType,
+          timeframe: ss.timeframe,
+          preview: ss.dataUrl,
+        }))
+        setSnapshots(newSnapshots)
+        setAutoCapturing(false)
+      }
+      if (event.data?.type === 'AI_TRADER_CAPTURE_ERROR') {
+        console.error('Auto capture error:', event.data.error)
+        setAutoCapturing(false)
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
 
   // When symbol changes, save current snapshots and load previous ones
   useEffect(() => {
@@ -226,23 +255,63 @@ export default function AiChart({
         />
       </div>
 
-      {/* Screenshot capture button */}
-      <button
-        onClick={captureChart}
-        disabled={capturing}
-        className={cn(
-          'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors w-full justify-center',
-          capturing
-            ? 'bg-surface-3 text-text-muted'
-            : 'bg-surface-1 hover:bg-surface-2 text-text-primary border border-surface-3'
-        )}
-      >
-        {capturing ? (
-          <><Loader2 size={16} className="animate-spin" /> Capturing...</>
-        ) : (
-          <><Camera size={16} /> Add Screenshot to List</>
-        )}
-      </button>
+      {/* Capture buttons */}
+      <div className="flex gap-2">
+        {/* Auto Capture — uses Chrome extension */}
+        <button
+          onClick={() => {
+            if (!extensionReady) {
+              alert('AI Trader Chrome Extension not detected. Install it from the chrome-extension folder.')
+              return
+            }
+            setAutoCapturing(true)
+            setSnapshots([])
+            window.postMessage({
+              type: 'AI_TRADER_CAPTURE_REQUEST',
+              symbol: symbol,
+            }, '*')
+          }}
+          disabled={autoCapturing || !symbol}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex-1 justify-center',
+            autoCapturing
+              ? 'bg-surface-3 text-text-muted'
+              : extensionReady
+                ? 'bg-brand-600 hover:bg-brand-700 text-white'
+                : 'bg-surface-1 hover:bg-surface-2 text-text-primary border border-surface-3'
+          )}
+        >
+          {autoCapturing ? (
+            <><Loader2 size={16} className="animate-spin" /> Capturing 4 timeframes...</>
+          ) : (
+            <><Zap size={16} /> Auto Capture (4 TFs)</>
+          )}
+        </button>
+
+        {/* Manual capture */}
+        <button
+          onClick={captureChart}
+          disabled={capturing}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex-1 justify-center',
+            capturing
+              ? 'bg-surface-3 text-text-muted'
+              : 'bg-surface-1 hover:bg-surface-2 text-text-primary border border-surface-3'
+          )}
+        >
+          {capturing ? (
+            <><Loader2 size={16} className="animate-spin" /> Capturing...</>
+          ) : (
+            <><Camera size={16} /> Manual Screenshot</>
+          )}
+        </button>
+      </div>
+
+      {!extensionReady && (
+        <p className="text-[10px] text-text-muted text-center">
+          Install the AI Trader Chrome Extension for one-click 4-timeframe capture
+        </p>
+      )}
 
       {/* Snapshot list */}
       {snapshots.length > 0 && (

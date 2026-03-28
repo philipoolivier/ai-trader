@@ -129,18 +129,22 @@ async function fetchIndicator(indicator: string, symbol: string, interval: strin
 }
 
 export async function getIndicators(symbol: string, interval: string = '5min'): Promise<IndicatorData> {
-  // Fetch all indicators in parallel
-  const [vwapRaw, atrRaw, adxRaw, plusDiRaw, minusDiRaw, ichimokuRaw, bbandsRaw, supertrendRaw, dailyOhlc] = await Promise.all([
-    fetchIndicator('vwap', symbol, interval),
+  // Only fetch what the chart CAN'T show visually:
+  // ATR (exact number for SL sizing), ADX/DI (exact trend strength), daily levels
+  // User's TradingView chart handles: VWAP, BBands, Ichimoku, SuperTrend, VRVP etc.
+  const [atrRaw, adxRaw, plusDiRaw, minusDiRaw, dailyOhlc] = await Promise.all([
     fetchIndicator('atr', symbol, interval, '&time_period=14'),
     fetchIndicator('adx', symbol, interval, '&time_period=14'),
     fetchIndicator('plus_di', symbol, interval, '&time_period=14'),
     fetchIndicator('minus_di', symbol, interval, '&time_period=14'),
-    fetchIndicator('ichimoku', symbol, interval, '&conversion_line_period=9&base_line_period=26&leading_span_b_period=52&lagging_span_period=26'),
-    fetchIndicator('bbands', symbol, interval, '&time_period=20&sd=2&ma_type=SMA'),
-    fetchIndicator('supertrend', symbol, interval, '&period=10&multiplier=3'),
     fetchIndicator('time_series', symbol, '1day', ''), // Daily candles for PDH/PDL
   ])
+
+  // Set empty arrays for indicators now shown on chart visually
+  const vwapRaw: Record<string, string>[] = []
+  const ichimokuRaw: Record<string, string>[] = []
+  const bbandsRaw: Record<string, string>[] = []
+  const supertrendRaw: Record<string, string>[] = []
 
   // Merge ADX + DI into single objects
   const adxMap = new Map<string, { adx: number; plus_di: number; minus_di: number }>()
