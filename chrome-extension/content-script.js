@@ -1,15 +1,19 @@
 // AI Trader - Content Script
 // Bridge between the web app and the Chrome extension
 
-// Listen for capture requests from the web app page
+// Listen for messages from the web app page
 window.addEventListener('message', (event) => {
-  // Only accept messages from our app
   if (event.source !== window) return;
 
+  // Respond to ping — lets the app know extension is installed
+  if (event.data && event.data.type === 'AI_TRADER_PING') {
+    window.postMessage({ type: 'AI_TRADER_EXTENSION_READY' }, '*');
+  }
+
+  // Handle capture request
   if (event.data && event.data.type === 'AI_TRADER_CAPTURE_REQUEST') {
     console.log('[AI Trader Extension] Capture request received:', event.data.symbol);
 
-    // Forward to background service worker
     chrome.runtime.sendMessage({
       type: 'CAPTURE_REQUEST',
       symbol: event.data.symbol,

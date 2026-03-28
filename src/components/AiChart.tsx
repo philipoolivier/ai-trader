@@ -84,6 +84,11 @@ export default function AiChart({
       }
     }
     window.addEventListener('message', handleMessage)
+
+    // Ping the extension to check if it's installed
+    // The content script responds with AI_TRADER_EXTENSION_READY
+    window.postMessage({ type: 'AI_TRADER_PING' }, '*')
+
     return () => window.removeEventListener('message', handleMessage)
   }, [])
 
