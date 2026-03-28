@@ -56,7 +56,7 @@ async function doCapture(symbol, timeframes, originTabId, originWindowId) {
     openTabId = tab.id;
 
     // Wait for initial page load
-    await delay(5000);
+    await delay(6000);
 
     for (let i = 0; i < timeframes.length; i++) {
       const tf = timeframes[i];
@@ -69,46 +69,37 @@ async function doCapture(symbol, timeframes, originTabId, originWindowId) {
         if (i > 0) {
           const url = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}&interval=${tf.interval}`;
           await chrome.tabs.update(openTabId, { url });
-          await delay(5000);
+          await delay(6000); // Wait for chart + indicators to load
         }
 
-        // Auto-fit the chart
+        // Auto-fit: double-click the price scale to reset vertical zoom
         try {
           await chrome.scripting.executeScript({
             target: { tabId: openTabId },
             func: () => {
-              // Find all canvases — the main chart canvas is usually the largest
-              const canvases = document.querySelectorAll('canvas');
-              let mainCanvas = null;
-              let maxArea = 0;
-              canvases.forEach(c => {
-                const area = c.width * c.height;
-                if (area > maxArea) { maxArea = area; mainCanvas = c; }
-              });
-
-              if (mainCanvas) {
-                // Double-click on the price scale (right side) to auto-fit vertically
-                const rect = mainCanvas.getBoundingClientRect();
-                const rightEdge = rect.right - 10;
-                const centerY = rect.top + rect.height / 2;
-
-                mainCanvas.dispatchEvent(new MouseEvent('dblclick', {
-                  clientX: rightEdge, clientY: centerY,
-                  bubbles: true, cancelable: true,
-                }));
+              // The price scale is a separate pane on the right side of the chart
+              // Find it by looking for the narrow canvas/div on the right
+              const containers = document.querySelectorAll('td, div');
+              for (const el of containers) {
+                const rect = el.getBoundingClientRect();
+                // Price scale is typically ~60-80px wide, on the far right, full height
+                if (rect.width > 40 && rect.width < 120 && rect.height > 300 &&
+                    rect.right > window.innerWidth - 150) {
+                  // Double-click to auto-scale
+                  el.dispatchEvent(new MouseEvent('dblclick', {
+                    clientX: rect.left + rect.width / 2,
+                    clientY: rect.top + rect.height / 2,
+                    bubbles: true, cancelable: true, view: window,
+                  }));
+                  console.log('Double-clicked price scale at', rect.left, rect.top);
+                  break;
+                }
               }
-
-              // Also try keyboard shortcuts
-              const chartEl = document.querySelector('[class*="chart-container"]') || document.body;
-              // Shift+Alt+F = fit all data
-              chartEl.dispatchEvent(new KeyboardEvent('keydown', {
-                key: 'f', shiftKey: true, altKey: true, bubbles: true,
-              }));
             },
           });
         } catch (e) { console.log('Auto-fit:', e.message); }
 
-        await delay(2000);
+        await delay(1500);
 
         // Focus window for capture
         try {

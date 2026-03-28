@@ -128,48 +128,14 @@ export async function getEconomicCalendar(): Promise<
   }
 }
 
-// Current trading session based on UTC time
+// Session context — tells Claude to read from the chart instead of guessing
 export function getCurrentSession(): { name: string; description: string; note: string } {
   const now = new Date()
-  const utcHour = now.getUTCHours()
-
-  // Asia: 00:00 - 08:00 UTC (Tokyo 9am-5pm)
-  // London: 07:00 - 16:00 UTC (London 7am-4pm)
-  // New York: 12:00 - 21:00 UTC (NY 8am-5pm)
-  // London/NY overlap: 12:00 - 16:00 UTC
-
-  if (utcHour >= 12 && utcHour < 16) {
-    return {
-      name: 'London/NY Overlap',
-      description: 'Highest volume and volatility. Best time for breakouts and trend moves.',
-      note: 'This is the most liquid session — expect strong moves and zone reactions.',
-    }
-  }
-  if (utcHour >= 7 && utcHour < 16) {
-    return {
-      name: 'London Session',
-      description: 'High volume. Institutional activity. Key reversals and trend starts.',
-      note: 'London often sweeps Asia highs/lows before reversing. Watch for liquidity grabs.',
-    }
-  }
-  if (utcHour >= 12 && utcHour < 21) {
-    return {
-      name: 'New York Session',
-      description: 'Second highest volume. Often continues or reverses London moves.',
-      note: 'NY PM session (after 16:00 UTC) is typically lower volume — tighter stops.',
-    }
-  }
-  if (utcHour >= 0 && utcHour < 8) {
-    return {
-      name: 'Asia Session',
-      description: 'Lower volume. Range-building. Sets up the day\'s liquidity.',
-      note: 'Asia ranges get swept in London. Mark Asia high/low for liquidity targets.',
-    }
-  }
+  const utcStr = now.toUTCString()
 
   return {
-    name: 'Off-hours',
-    description: 'Between major sessions. Lower liquidity.',
-    note: 'Wider spreads, less reliable moves. Consider waiting for the next session.',
+    name: `Current UTC time: ${utcStr}`,
+    description: 'Determine the active session from the SESSION BOXES on the chart (Yellow=Asia, Blue=London, Red/Purple=NY). The rightmost session box that is still forming = the current session.',
+    note: `Session reference (UTC): Asia 22:00-07:00, London 07:00-16:00, NY 12:00-21:00, London/NY Overlap 12:00-16:00. The chart broker may use a different timezone — read the session boxes directly, do not rely on the clock.`,
   }
 }

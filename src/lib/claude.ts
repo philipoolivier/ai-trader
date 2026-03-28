@@ -44,10 +44,20 @@ The chart has these indicators — read them carefully:
 - LIGHT GREEN zones = TESTED demand (weaker — already visited)
 - FRESH zones are where you want to place limit orders. The edge of the zone = your entry, the far side = your SL.
 
+**VWAP + Standard Deviation Bands:**
+- The curved lines on the chart are VWAP with ±2 standard deviation bands
+- VWAP (center line) = institutional fair value for the session
+- Upper band (+2σ) = overbought / potential supply reaction
+- Lower band (-2σ) = oversold / potential demand reaction
+- Price above VWAP = bullish bias, below = bearish bias
+- Price touching ±2σ bands = mean reversion opportunity back toward VWAP
+
 **ICT Session Boxes:**
 - YELLOW boxes = Asia session range
 - BLUE boxes = London session range
 - RED/PURPLE boxes = New York session range
+- The RIGHTMOST session box that is still forming = the CURRENT active session
+- Read the session directly from the chart — do NOT guess based on clock time
 - Session highs/lows are key levels. Sweeps of session highs/lows = liquidity grabs.
 
 **Horizontal Lines:**
