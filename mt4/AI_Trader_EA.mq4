@@ -29,12 +29,30 @@ int OnInit()
       Alert("AI Trader EA: API_KEY is empty! Set your AUTH_SECRET.");
       return(INIT_PARAMETERS_INCORRECT);
    }
-   Print("AI Trader EA v2.0 initialized. Poll:", PollSeconds, "s Sync:", SyncSeconds, "s");
+   // Use timer so EA runs even when market is closed (no ticks on weekends)
+   EventSetTimer(PollSeconds);
+   Print("AI Trader EA v2.2 initialized. Poll:", PollSeconds, "s Sync:", SyncSeconds, "s");
+   Print("API URL: ", API_URL);
    return(INIT_SUCCEEDED);
+}
+
+void OnDeinit(const int reason)
+{
+   EventKillTimer();
 }
 
 //+------------------------------------------------------------------+
 void OnTick()
+{
+   DoWork();
+}
+
+void OnTimer()
+{
+   DoWork();
+}
+
+void DoWork()
 {
    // Poll for new signals
    if(TimeCurrent() - lastPoll >= PollSeconds)
