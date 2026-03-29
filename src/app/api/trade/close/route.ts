@@ -19,16 +19,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Position not found or already closed' }, { status: 404 })
     }
 
-    // Mark position for closing — set quantity to 0
-    // The EA will pick this up as a close_position command and close it on MT4
-    // MT4 sync will then update the balance and record the trade
-    await supabase
-      .from('positions')
-      .update({ quantity: 0, updated_at: new Date().toISOString() })
-      .eq('id', positionId)
+    // Create a close command as a pending_orders record
+    // EA picks this up and closes the position on MT4
+    const closeSide = position.side === 'long' ? 'sell' : 'buy'
+    const { error: insertError } = await supabase
+      .from('pending_orders')
+      .insert({
+        symbol: position.symbol,
+        side: closeSide,
+        lot_size: parseFloat(position.quantity),
+        entry_price: 0,
+        order_type: 'close_market',
+        status: 'pending',
+      })
+
+    if (insertError) {
+      console.error('Close command insert failed:', insertError)
+      return NextResponse.json({ error: insertError.message }, { status: 500 })
+    }
+
+    console.log('Close command created for', position.symbol, position.side)
 
     return NextResponse.json({
-      message: `Closing ${position.symbol} ${position.side} — MT4 will execute`,
+      message: `Closing ${position.symbol} ${position.side} — sending to MT4`,
     })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to close position'

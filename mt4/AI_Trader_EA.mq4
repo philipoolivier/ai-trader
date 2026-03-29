@@ -296,6 +296,18 @@ void ProcessOneSignal(string json)
       }
    }
 
+   // Handle close_market — close existing position instead of opening new one
+   if(type == "close_market")
+   {
+      Print("Close market command for ", symbol, " side=", side);
+      // side is the CLOSING side (sell to close a buy, buy to close a sell)
+      string positionSide = (side == "sell") ? "buy" : "sell"; // Original position side
+      ClosePositionOnMT4(symbol, positionSide);
+      ConfirmSignal(id, 0, "executed");
+      MarkProcessed(id);
+      return;
+   }
+
    int cmd = -1;
    if(type == "buy_stop")       cmd = OP_BUYSTOP;
    else if(type == "buy_limit") cmd = OP_BUYLIMIT;

@@ -19,12 +19,15 @@ export async function GET(request: Request) {
 
   try {
     // New pending orders (not yet placed on MT4 — no mt4_ticket)
+    // Includes close_market orders
     const { data: pending } = await supabase
       .from('pending_orders')
       .select('*')
       .eq('status', 'pending')
       .is('mt4_ticket', null)
       .order('created_at', { ascending: true })
+
+    console.log('Signals: returning', pending?.length || 0, 'pending orders')
 
     const signals = (pending || []).map(order => ({
       id: order.id,
@@ -64,7 +67,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // Recently closed positions (within last 60s)
+    // Recently closed positions (within last 5 min)
     const { data: portfolio } = await supabase
       .from('portfolios').select('id').eq('user_id', 'default-user').single()
 
@@ -73,11 +76,14 @@ export async function GET(request: Request) {
         .from('positions')
         .select('*')
         .eq('portfolio_id', portfolio.id)
-        .eq('quantity', 0)
+        .lte('quantity', 0)
         .gt('updated_at', new Date(Date.now() - 300000).toISOString())
+
+      console.log('Close commands: found', closedPositions?.length || 0, 'closed positions')
 
       if (closedPositions) {
         for (const pos of closedPositions) {
+          console.log('Close command:', pos.symbol, pos.side, 'qty:', pos.quantity, 'updated:', pos.updated_at)
           commands.push({
             action: 'close_position',
             symbol: mapSymbolToMT4(pos.symbol),

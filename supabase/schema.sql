@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS pending_orders (
   entry_price DECIMAL(15, 4) NOT NULL,
   stop_loss DECIMAL(15, 4),
   take_profit DECIMAL(15, 4),
-  order_type TEXT NOT NULL CHECK (order_type IN ('buy_stop', 'buy_limit', 'sell_stop', 'sell_limit')),
+  order_type TEXT NOT NULL CHECK (order_type IN ('buy_stop', 'buy_limit', 'sell_stop', 'sell_limit', 'close_market')),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'triggering', 'triggered', 'cancelled')),
   ai_suggestion_id UUID REFERENCES ai_suggestions(id),
   triggered_trade_id UUID REFERENCES trades(id),
