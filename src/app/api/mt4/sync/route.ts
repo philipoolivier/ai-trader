@@ -43,39 +43,66 @@ export async function POST(request: Request) {
         lots: number; openPrice: number; sl: number; tp: number; profit: number; type: number;
       }[]
 
-      // Get only market orders (type 0=buy, 1=sell), not pending (2-5)
       const openPositions = mt4Positions.filter(p => p.type <= 1)
+      const pendingPositions = mt4Positions.filter(p => p.type >= 2)
 
-      // Get current DB positions
+      // ── Sync open market positions ──
       const { data: dbPositions } = await supabase
         .from('positions')
         .select('*')
         .eq('portfolio_id', portfolio.id)
 
-      // Build map of MT4 positions by symbol+side
       const mt4Map = new Map<string, typeof openPositions[0]>()
       for (const pos of openPositions) {
-        const key = `${pos.symbol}_${pos.side}`
-        mt4Map.set(key, pos)
+        mt4Map.set(`${pos.symbol}_${pos.side}`, pos)
       }
 
-      // Close DB positions that no longer exist on MT4
       if (dbPositions) {
         for (const dbPos of dbPositions) {
           const qty = parseFloat(dbPos.quantity) || 0
           if (qty <= 0) continue
-
           const sym = dbPos.symbol.replace('/', '').toUpperCase()
           const side = dbPos.side === 'long' ? 'buy' : 'sell'
-          const key = `${sym}_${side}`
-
-          if (!mt4Map.has(key)) {
-            // Position exists in DB but not on MT4 — close it
+          if (!mt4Map.has(`${sym}_${side}`)) {
             await supabase
               .from('positions')
               .update({ quantity: 0, updated_at: new Date().toISOString() })
               .eq('id', dbPos.id)
             synced.push(`Closed position: ${dbPos.symbol} (not on MT4)`)
+          }
+        }
+      }
+
+      // ── Sync pending orders from MT4 ──
+      // Get all pending orders in DB
+      const { data: dbPending } = await supabase
+        .from('pending_orders')
+        .select('*')
+        .in('status', ['pending', 'triggered'])
+
+      // Build set of MT4 pending order keys (symbol+entry)
+      const mt4PendingKeys = new Set<string>()
+      for (const p of pendingPositions) {
+        mt4PendingKeys.add(`${p.symbol}_${p.openPrice.toFixed(2)}`)
+      }
+
+      // Mark DB pending orders as triggered if they don't exist on MT4 anymore
+      // (they were filled or cancelled on MT4)
+      if (dbPending) {
+        for (const dbOrder of dbPending) {
+          if (dbOrder.status !== 'pending') continue
+          const sym = dbOrder.symbol.replace('/', '').toUpperCase()
+          const entry = parseFloat(dbOrder.entry_price).toFixed(2)
+          if (!mt4PendingKeys.has(`${sym}_${entry}`)) {
+            // Check if it was recently placed (< 30s) — might still be in transit
+            const age = Date.now() - new Date(dbOrder.created_at).getTime()
+            if (age > 30000) {
+              await supabase
+                .from('pending_orders')
+                .update({ status: 'triggered', updated_at: new Date().toISOString() })
+                .eq('id', dbOrder.id)
+              synced.push(`Pending ${sym} triggered/removed from MT4`)
+            }
           }
         }
       }
