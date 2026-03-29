@@ -262,6 +262,14 @@ void ProcessOneSignal(string json)
       Print("Empty symbol or id — skipping");
       return;
    }
+   // Skip commands that leaked into signals processing
+   // (commands have no 'type' field and may have 'action' instead)
+   if(type == "" && lots <= 0)
+   {
+      Print("Not a signal (no type, no lots) — skipping id=", id);
+      MarkProcessed(id);
+      return;
+   }
    if(lots <= 0 || lots > MaxLotSize) lots = MathMin(0.01, MaxLotSize);
 
    // Validate lot size against broker's min/max/step
