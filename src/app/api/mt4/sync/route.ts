@@ -67,20 +67,59 @@ export async function POST(request: Request) {
         mt4Map.set(`${pos.symbol}_${pos.side}`, pos)
       }
 
+      // Build map of DB positions
+      const dbMap = new Map<string, typeof dbPositions extends (infer T)[] | null ? T : never>()
       if (dbPositions) {
         for (const dbPos of dbPositions) {
-          const qty = parseFloat(dbPos.quantity) || 0
-          if (qty <= 0) continue
           const sym = dbPos.symbol.replace('/', '').toUpperCase()
           const side = dbPos.side === 'long' ? 'buy' : 'sell'
-          if (!mt4Map.has(`${sym}_${side}`)) {
-            await supabase
-              .from('positions')
-              .update({ quantity: 0, updated_at: new Date().toISOString() })
-              .eq('id', dbPos.id)
-            synced.push(`Closed position: ${dbPos.symbol} (not on MT4)`)
-          }
+          dbMap.set(`${sym}_${side}`, dbPos)
         }
+      }
+
+      // Create/update positions from MT4
+      for (const pos of openPositions) {
+        const key = `${pos.symbol}_${pos.side}`
+        const existing = dbMap.get(key)
+        const positionSide = pos.side === 'buy' ? 'long' : 'short'
+
+        if (existing) {
+          // Update existing position
+          await supabase
+            .from('positions')
+            .update({
+              quantity: pos.lots,
+              avg_price: pos.openPrice,
+              side: positionSide,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existing.id)
+        } else {
+          // Create new position from MT4
+          await supabase
+            .from('positions')
+            .insert({
+              portfolio_id: portfolio.id,
+              symbol: pos.symbol,
+              quantity: pos.lots,
+              avg_price: pos.openPrice,
+              side: positionSide,
+            })
+          synced.push(`Created position: ${pos.symbol} ${positionSide} ${pos.lots} lots`)
+        }
+        dbMap.delete(key) // Mark as matched
+      }
+
+      // Close DB positions not on MT4
+      const remaining = Array.from(dbMap.values())
+      for (const dbPos of remaining) {
+        const qty = parseFloat(dbPos.quantity) || 0
+        if (qty <= 0) continue
+        await supabase
+          .from('positions')
+          .update({ quantity: 0, updated_at: new Date().toISOString() })
+          .eq('id', dbPos.id)
+        synced.push(`Closed position: ${dbPos.symbol} (not on MT4)`)
       }
 
       // ── Sync pending orders from MT4 using ticket as unique key ──
