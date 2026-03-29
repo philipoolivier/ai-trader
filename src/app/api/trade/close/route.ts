@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-// Simple close_commands table replacement — just use a JSON field on positions
+// Store close requests in localStorage-style approach:
+// Just write to a simple key-value in portfolios table
 export async function POST(request: Request) {
   try {
     const { positionId } = await request.json()
-    console.log('[CLOSE] positionId:', positionId)
 
     if (!positionId) {
       return NextResponse.json({ error: 'Position ID required' }, { status: 400 })
@@ -21,30 +21,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Position not found' }, { status: 404 })
     }
 
-    console.log('[CLOSE] Found:', position.symbol, position.side, 'qty:', position.quantity)
+    const symbol = position.symbol.replace('/', '').toUpperCase()
+    const side = position.side === 'long' ? 'buy' : 'sell'
 
-    // Mark position as close_requested
-    const closingSide = position.side === 'long' ? 'closing_long' : 'closing_short'
-    const { error: updateError } = await supabase
-      .from('positions')
-      .update({ side: closingSide, updated_at: new Date().toISOString() })
-      .eq('id', positionId)
+    // Store close request in portfolio's updated_at field as JSON won't work
+    // Instead: use a dedicated approach — write directly to a close_requests text field on portfolios
+    // Or simplest: just append to notes field... No.
 
-    if (updateError) {
-      console.error('[CLOSE] UPDATE FAILED:', updateError.message, updateError.details, updateError.code)
-      // Constraint likely rejects closing_long/closing_short
-      // Return error so user knows
-      return NextResponse.json({ error: `DB update failed: ${updateError.message}. Run SQL: ALTER TABLE positions DROP CONSTRAINT IF EXISTS positions_side_check; ALTER TABLE positions ADD CONSTRAINT positions_side_check CHECK (side IN ('long', 'short', 'closing_long', 'closing_short'));` }, { status: 500 })
+    // SIMPLEST APPROACH: Create a pending_orders entry with a known good order_type
+    // Use sell_stop for closing longs, buy_stop for closing shorts
+    // Entry price = 0.00001 signals to EA this is a close, not a real order
+    const closeOrderType = side === 'buy' ? 'sell_stop' : 'buy_stop' // opposite side to close
+
+    const { data: order, error: insertErr } = await supabase
+      .from('pending_orders')
+      .insert({
+        symbol: symbol,
+        side: side === 'buy' ? 'sell' : 'buy', // Close side is opposite
+        lot_size: 0.01,
+        entry_price: 0.00001, // Signal to EA: this is a close command
+        stop_loss: null,
+        take_profit: null,
+        order_type: closeOrderType,
+        status: 'pending',
+      })
+      .select()
+      .single()
+
+    if (insertErr) {
+      console.error('[CLOSE] Insert failed:', insertErr)
+      return NextResponse.json({ error: insertErr.message }, { status: 500 })
     }
 
-    console.log('[CLOSE] Marked as', closingSide, '- SUCCESS')
-
-    return NextResponse.json({
-      message: `Closing ${position.symbol} — sending to MT4`,
-    })
+    console.log('[CLOSE] Created close signal:', order.id, symbol, closeOrderType)
+    return NextResponse.json({ message: `Closing ${symbol} — sending to MT4` })
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to close position'
-    console.error('[CLOSE] Error:', message)
+    const message = error instanceof Error ? error.message : 'Failed'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

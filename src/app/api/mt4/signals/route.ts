@@ -69,30 +69,8 @@ export async function GET(request: Request) {
       }
     }
 
-    // Positions marked for closing (side = 'closing_long' or 'closing_short')
-    const { data: portfolio } = await supabase
-      .from('portfolios').select('id').eq('user_id', 'default-user').single()
-
-    if (portfolio) {
-      const { data: closingPositions } = await supabase
-        .from('positions')
-        .select('*')
-        .eq('portfolio_id', portfolio.id)
-        .in('side', ['closing_long', 'closing_short'])
-
-      if (closingPositions && closingPositions.length > 0) {
-        console.log('[SIGNALS] Found', closingPositions.length, 'positions to close')
-        for (const pos of closingPositions) {
-          const originalSide = pos.side === 'closing_long' ? 'buy' : 'sell'
-          commands.push({
-            action: 'close_position',
-            symbol: mapSymbolToMT4(pos.symbol),
-            side: originalSide,
-            id: pos.id,
-          })
-        }
-      }
-    }
+    // Close commands come through pending_orders with entry_price = 0.00001
+    // EA detects entry < 0.001 and treats as close command
 
     return NextResponse.json({ signals, commands, timestamp: new Date().toISOString() })
   } catch (error: unknown) {
