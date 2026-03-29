@@ -481,34 +481,30 @@ void ProcessCommands(string json)
       double entry     = GetJsonDouble(cmdJson, "entry");
       int    mt4Ticket = (int)GetJsonDouble(cmdJson, "mt4_ticket");
 
-      if(IsProcessed(cmdId)) { objStart = objEnd + 1; continue; }
+      // Commands always execute — no IsProcessed check
+      // Duplicate execution is harmless (delete/close on already gone = just fails)
 
       if(action == "cancel_pending")
       {
-         Print("Command: cancel pending ", symbol, " ticket=", mt4Ticket, " entry=", entry);
+         Print("CMD: cancel pending ", symbol, " ticket=", mt4Ticket);
+         bool ok = false;
          if(mt4Ticket > 0)
-            CancelByTicket(mt4Ticket);
+         {
+            if(OrderSelect(mt4Ticket, SELECT_BY_TICKET))
+            {
+               ok = OrderDelete(mt4Ticket);
+               Print("OrderDelete #", mt4Ticket, " result: ", ok, ok ? "" : " err=" + IntegerToString(GetLastError()));
+            }
+            else
+               Print("Ticket #", mt4Ticket, " not found (already deleted)");
+         }
          else
             CancelPendingOnMT4(symbol, side, entry);
-         MarkProcessed(cmdId);
       }
       else if(action == "close_position")
       {
-         Print(">>> CLOSE POSITION command: ", symbol, " side=", side);
-         bool closed = ClosePositionOnMT4(symbol, side);
-         if(closed)
-         {
-            Print(">>> Position closed, confirming...");
-            // Confirm to API so it removes from queue
-            string confirmUrl = API_URL + "/api/mt4/signals";
-            string confirmBody = "{\"key\":\"" + API_KEY + "\",\"id\":\"" + cmdId + "\",\"ticket\":0,\"action\":\"closed\"}";
-            string cHeaders = "Content-Type: application/json\r\n";
-            char cPost[], cResult[];
-            string cResHeaders;
-            StringToCharArray(confirmBody, cPost, 0, StringLen(confirmBody));
-            WebRequest("POST", confirmUrl, cHeaders, 5000, cPost, cResult, cResHeaders);
-         }
-         MarkProcessed(cmdId);
+         Print("CMD: close position ", symbol, " ", side);
+         ClosePositionOnMT4(symbol, side);
       }
 
       objStart = objEnd + 1;

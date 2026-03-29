@@ -97,7 +97,7 @@ export async function GET(request: Request) {
               action: 'close_position',
               symbol: mapSymbolToMT4(pos.symbol),
               side: pos.side === 'long' ? 'buy' : 'sell',
-              id: `close-${pos.id}`,
+              id: `close-${pos.id}-${Date.now()}`, // Unique each poll so EA never skips
             })
           }
         }
