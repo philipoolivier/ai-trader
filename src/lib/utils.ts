@@ -6,17 +6,18 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(value: number, symbol?: string): string {
-  // Detect appropriate decimal places
-  // JPY pairs (50-200 range): 3 decimals (150.342)
-  // Forex pairs (< $10): 5 decimals (1.15342)
-  // Metals/indices (> $200): 2 decimals ($4,522.50)
-  const absVal = Math.abs(value)
-  const isJpy = symbol ? symbol.toUpperCase().includes('JPY') : false
+  // Default: 2 decimals for account values, P&L, etc.
+  // Only use extra decimals for forex price display (when symbol is provided)
   let decimals = 2
-  if (isJpy || (absVal >= 10 && absVal < 200)) {
-    decimals = 3
-  } else if (absVal > 0 && absVal < 10) {
-    decimals = 5
+
+  if (symbol) {
+    const s = symbol.toUpperCase()
+    const absVal = Math.abs(value)
+    if (s.includes('JPY')) {
+      decimals = 3 // USD/JPY: 150.342
+    } else if (absVal > 0 && absVal < 10) {
+      decimals = 5 // EUR/USD: 1.15342
+    }
   }
 
   return new Intl.NumberFormat('en-US', {
