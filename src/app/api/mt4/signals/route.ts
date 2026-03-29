@@ -42,12 +42,12 @@ export async function GET(request: Request) {
     // Commands: cancelled orders + closed positions from web app
     const commands: { action: string; symbol: string; side: string; entry?: number; id: string; mt4_ticket?: number }[] = []
 
-    // Recently cancelled pending orders (within last 60s)
+    // Recently cancelled pending orders (within last 5 minutes)
     const { data: cancelled } = await supabase
       .from('pending_orders')
       .select('*')
       .eq('status', 'cancelled')
-      .gt('updated_at', new Date(Date.now() - 60000).toISOString())
+      .gt('updated_at', new Date(Date.now() - 300000).toISOString())
 
     if (cancelled) {
       for (const order of cancelled) {
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
         .select('*')
         .eq('portfolio_id', portfolio.id)
         .eq('quantity', 0)
-        .gt('updated_at', new Date(Date.now() - 60000).toISOString())
+        .gt('updated_at', new Date(Date.now() - 300000).toISOString())
 
       if (closedPositions) {
         for (const pos of closedPositions) {

@@ -458,18 +458,22 @@ void ProcessCommands(string json)
       if(objEnd == -1) break;
 
       string cmdJson = StringSubstr(cmdArr, nextObj, objEnd - nextObj + 1);
-      string action = GetJsonString(cmdJson, "action");
-      string symbol = GetJsonString(cmdJson, "symbol");
-      string side   = GetJsonString(cmdJson, "side");
-      string cmdId  = GetJsonString(cmdJson, "id");
-      double entry  = GetJsonDouble(cmdJson, "entry");
+      string action    = GetJsonString(cmdJson, "action");
+      string symbol    = GetJsonString(cmdJson, "symbol");
+      string side      = GetJsonString(cmdJson, "side");
+      string cmdId     = GetJsonString(cmdJson, "id");
+      double entry     = GetJsonDouble(cmdJson, "entry");
+      int    mt4Ticket = (int)GetJsonDouble(cmdJson, "mt4_ticket");
 
       if(IsProcessed(cmdId)) { objStart = objEnd + 1; continue; }
 
       if(action == "cancel_pending")
       {
-         Print("Command: cancel pending ", symbol, " ", side, " @ ", entry);
-         CancelPendingOnMT4(symbol, side, entry);
+         Print("Command: cancel pending ", symbol, " ticket=", mt4Ticket, " entry=", entry);
+         if(mt4Ticket > 0)
+            CancelByTicket(mt4Ticket);
+         else
+            CancelPendingOnMT4(symbol, side, entry);
          MarkProcessed(cmdId);
       }
       else if(action == "close_position")
@@ -480,6 +484,36 @@ void ProcessCommands(string json)
       }
 
       objStart = objEnd + 1;
+   }
+}
+
+void CancelByTicket(int ticket)
+{
+   if(OrderSelect(ticket, SELECT_BY_TICKET))
+   {
+      if(OrderType() > OP_SELL) // Pending order
+      {
+         bool deleted = OrderDelete(ticket);
+         if(deleted)
+            Print("Cancelled MT4 pending #", ticket);
+         else
+            Print("Failed to cancel #", ticket, ": ", GetLastError());
+      }
+      else // Market order — close it
+      {
+         double closePrice = (OrderType() == OP_BUY) ?
+            MarketInfo(OrderSymbol(), MODE_BID) :
+            MarketInfo(OrderSymbol(), MODE_ASK);
+         bool closed = OrderClose(ticket, OrderLots(), closePrice, Slippage, clrRed);
+         if(closed)
+            Print("Closed MT4 position #", ticket);
+         else
+            Print("Failed to close #", ticket, ": ", GetLastError());
+      }
+   }
+   else
+   {
+      Print("Ticket #", ticket, " not found");
    }
 }
 
