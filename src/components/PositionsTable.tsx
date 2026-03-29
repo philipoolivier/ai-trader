@@ -27,21 +27,30 @@ export default function PositionsTable({ positions, loading, onSymbolClick, onPo
     setCloseMessage(null)
 
     try {
+      console.log('[CLOSE UI] Sending close request for', positionId, symbol)
       const res = await fetch('/api/trade/close', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ positionId }),
       })
-      const data = await res.json()
+
+      const text = await res.text()
+      console.log('[CLOSE UI] Response status:', res.status, 'body:', text)
+
+      let data
+      try { data = JSON.parse(text) } catch { data = { error: text } }
 
       if (res.ok) {
-        setCloseMessage({ type: 'success', text: data.message })
-        onPositionClosed?.()
+        setCloseMessage({ type: 'success', text: data.message || 'Close sent' })
+        // Delay refresh so message is visible
+        setTimeout(() => onPositionClosed?.(), 3000)
       } else {
-        setCloseMessage({ type: 'error', text: data.error })
+        setCloseMessage({ type: 'error', text: data.error || `HTTP ${res.status}: ${text.slice(0, 200)}` })
       }
-    } catch {
-      setCloseMessage({ type: 'error', text: 'Failed to close position' })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      console.error('[CLOSE UI] Error:', msg)
+      setCloseMessage({ type: 'error', text: `Request failed: ${msg}` })
     } finally {
       setClosingId(null)
     }
