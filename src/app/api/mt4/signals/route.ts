@@ -80,7 +80,25 @@ export async function GET(request: Request) {
       }
     }
 
-    // Close from portfolio: disabled for now, will fix properly
+    // Close requests (stored with status='close_requested' in pending_orders)
+    const { data: closeRequests } = await supabase
+      .from('pending_orders')
+      .select('*')
+      .eq('status', 'close_requested')
+
+    if (closeRequests) {
+      for (const req of closeRequests) {
+        if (req.mt4_ticket) {
+          commands.push({
+            action: 'close_by_ticket',
+            symbol: mapSymbolToMT4(req.symbol),
+            side: req.side,
+            id: `closereq-${req.id}-${Date.now()}`,
+            mt4_ticket: req.mt4_ticket,
+          })
+        }
+      }
+    }
 
     return NextResponse.json({ signals, commands, timestamp: new Date().toISOString() })
   } catch (error: unknown) {

@@ -67,99 +67,81 @@ export async function POST(request: Request) {
         mt4Map.set(`${pos.symbol}_${pos.side}`, pos)
       }
 
-      // Aggregate MT4 positions by symbol (MT4 can have multiple orders per symbol)
-      const mt4Aggregated = new Map<string, { symbol: string; side: string; totalLots: number; avgPrice: number; count: number }>()
+      // ── Sync individual positions by MT4 ticket ──
+      // Each MT4 order = one DB position row (no aggregation)
+
+      // Build set of MT4 tickets currently open
+      const mt4OpenTickets = new Set<string>()
       for (const pos of openPositions) {
-        const key = pos.symbol
-        const existing = mt4Aggregated.get(key)
-        if (existing) {
-          const totalValue = existing.avgPrice * existing.totalLots + pos.openPrice * pos.lots
-          existing.totalLots += pos.lots
-          existing.avgPrice = totalValue / existing.totalLots
-          existing.count++
-        } else {
-          mt4Aggregated.set(key, {
-            symbol: pos.symbol,
-            side: pos.side,
-            totalLots: pos.lots,
-            avgPrice: pos.openPrice,
-            count: 1,
-          })
-        }
+        mt4OpenTickets.add(String(pos.ticket))
       }
 
-      // Get current DB positions
-      const dbSymbols = new Set<string>()
+      // Build map of DB positions by mt4_ticket
+      const dbTicketMap = new Map<string, string>() // ticket → position id
       if (dbPositions) {
         for (const dbPos of dbPositions) {
-          dbSymbols.add(dbPos.symbol.replace('/', '').toUpperCase())
+          if (dbPos.mt4_ticket) {
+            dbTicketMap.set(String(dbPos.mt4_ticket), dbPos.id)
+          }
         }
       }
 
-      // Upsert each aggregated position
-      const aggValues = Array.from(mt4Aggregated.values())
-      for (const agg of aggValues) {
-        const positionSide = agg.side === 'buy' ? 'long' : 'short'
-        const sym = agg.symbol.toUpperCase()
+      // Create/update positions from MT4
+      for (const pos of openPositions) {
+        const ticketStr = String(pos.ticket)
+        const positionSide = pos.side === 'buy' ? 'long' : 'short'
+        const existingId = dbTicketMap.get(ticketStr)
 
-        // Check if position is marked for closing (quantity = -1) — don't overwrite
-        const { data: existingCheck } = await supabase
-          .from('positions')
-          .select('id, quantity')
-          .eq('portfolio_id', portfolio.id)
-          .eq('symbol', sym)
-          .single()
-
-        if (existingCheck && parseFloat(existingCheck.quantity) < 0) {
-          // Close requested — don't update, let the EA close it
-          dbSymbols.delete(sym)
-          continue
-        }
-
-        // Try update first
-        const { data: updated } = await supabase
-          .from('positions')
-          .update({
-            quantity: agg.totalLots,
-            avg_price: agg.avgPrice,
-            side: positionSide,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('portfolio_id', portfolio.id)
-          .eq('symbol', sym)
-          .select('id')
-
-        if (!updated || updated.length === 0) {
-          // No existing row — insert
-          const { error: insErr } = await supabase
+        if (existingId) {
+          // Update existing
+          await supabase
+            .from('positions')
+            .update({
+              quantity: pos.lots,
+              avg_price: pos.openPrice,
+              side: positionSide,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingId)
+          dbTicketMap.delete(ticketStr)
+        } else {
+          // New position from MT4
+          await supabase
             .from('positions')
             .insert({
               portfolio_id: portfolio.id,
-              symbol: sym,
-              quantity: agg.totalLots,
-              avg_price: agg.avgPrice,
+              symbol: pos.symbol,
+              quantity: pos.lots,
+              avg_price: pos.openPrice,
               side: positionSide,
+              mt4_ticket: pos.ticket,
             })
-          if (insErr) {
-            console.error('Position insert failed:', sym, insErr.message)
-          } else {
-            synced.push(`Created: ${sym} ${positionSide} ${agg.totalLots} lots`)
-          }
+          synced.push(`New position: ${pos.symbol} ${positionSide} #${pos.ticket}`)
         }
-
-        dbSymbols.delete(sym)
       }
 
-      // Close DB positions not on MT4
-      if (dbPositions) {
-        for (const dbPos of dbPositions) {
-          const sym = dbPos.symbol.replace('/', '').toUpperCase()
-          if (dbSymbols.has(sym) && parseFloat(dbPos.quantity) > 0) {
-            await supabase
-              .from('positions')
-              .update({ quantity: 0, updated_at: new Date().toISOString() })
-              .eq('id', dbPos.id)
-            synced.push(`Closed: ${sym} (not on MT4)`)
+      // Close DB positions whose MT4 ticket is no longer open
+      const remainingDbTickets = Array.from(dbTicketMap.values())
+      for (const posId of remainingDbTickets) {
+        await supabase
+          .from('positions')
+          .update({ quantity: 0, updated_at: new Date().toISOString() })
+          .eq('id', posId)
+      }
+
+      // ── Clean up close requests for tickets no longer on MT4 ──
+      const { data: closeReqs } = await supabase
+        .from('pending_orders')
+        .select('id, mt4_ticket')
+        .eq('status', 'close_requested')
+
+      if (closeReqs) {
+        for (const req of closeReqs) {
+          if (req.mt4_ticket && !mt4OpenTickets.has(String(req.mt4_ticket))) {
+            await supabase.from('pending_orders')
+              .update({ status: 'triggered' })
+              .eq('id', req.id)
+            synced.push(`Close request done: #${req.mt4_ticket}`)
           }
         }
       }

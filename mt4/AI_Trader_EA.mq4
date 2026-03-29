@@ -503,16 +503,18 @@ void ProcessCommands(string json)
       }
       else if(action == "close_position")
       {
-         Print("CMD: close position ", symbol, " side_from_api=", side);
-         // Try both sides — just close whatever we find for this symbol
+         Print("CMD: close position ", symbol, " side=", side);
          bool closed = ClosePositionOnMT4(symbol, side);
          if(!closed)
          {
-            // Try opposite side in case the API sent closing side vs position side
             string oppSide = (side == "buy") ? "sell" : "buy";
-            Print("CMD: retrying with opposite side: ", oppSide);
             ClosePositionOnMT4(symbol, oppSide);
          }
+      }
+      else if(action == "close_by_ticket")
+      {
+         Print("CMD: close by ticket #", mt4Ticket, " ", symbol);
+         CancelByTicket(mt4Ticket); // CancelByTicket handles both pending and market orders
       }
 
       objStart = objEnd + 1;
