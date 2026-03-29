@@ -78,8 +78,9 @@ void PollForSignals()
    string response = CharArrayToString(result);
    if(res != 200) { Print("API error (", res, "): ", StringSubstr(response, 0, 200)); return; }
 
-   Print("Poll OK (", res, ") — processing signals...");
+   Print("Poll OK (", res, ") — processing...");
    ProcessSignals(response);
+   ProcessCommands(response);
 }
 
 //+------------------------------------------------------------------+
@@ -431,6 +432,102 @@ void ConfirmSignal(string id, int ticket, string action)
       Print("Signal ", id, " confirmed: ", action);
    else
       Print("Confirm failed (", res, "): ", CharArrayToString(result));
+}
+
+//+------------------------------------------------------------------+
+// Process commands (close positions, cancel pending orders from web app)
+//+------------------------------------------------------------------+
+void ProcessCommands(string json)
+{
+   int cmdStart = StringFind(json, "\"commands\":[");
+   if(cmdStart == -1) return;
+
+   int arrStart = StringFind(json, "[", cmdStart);
+   int arrEnd = FindMatchingBracket(json, arrStart);
+   if(arrEnd == -1) return;
+
+   string cmdArr = StringSubstr(json, arrStart + 1, arrEnd - arrStart - 1);
+   if(StringLen(cmdArr) < 5) return; // Empty array
+
+   int objStart = 0;
+   while(true)
+   {
+      int nextObj = StringFind(cmdArr, "{", objStart);
+      if(nextObj == -1) break;
+      int objEnd = StringFind(cmdArr, "}", nextObj);
+      if(objEnd == -1) break;
+
+      string cmdJson = StringSubstr(cmdArr, nextObj, objEnd - nextObj + 1);
+      string action = GetJsonString(cmdJson, "action");
+      string symbol = GetJsonString(cmdJson, "symbol");
+      string side   = GetJsonString(cmdJson, "side");
+      string cmdId  = GetJsonString(cmdJson, "id");
+      double entry  = GetJsonDouble(cmdJson, "entry");
+
+      if(IsProcessed(cmdId)) { objStart = objEnd + 1; continue; }
+
+      if(action == "cancel_pending")
+      {
+         Print("Command: cancel pending ", symbol, " ", side, " @ ", entry);
+         CancelPendingOnMT4(symbol, side, entry);
+         MarkProcessed(cmdId);
+      }
+      else if(action == "close_position")
+      {
+         Print("Command: close position ", symbol, " ", side);
+         ClosePositionOnMT4(symbol, side);
+         MarkProcessed(cmdId);
+      }
+
+      objStart = objEnd + 1;
+   }
+}
+
+void CancelPendingOnMT4(string symbol, string side, double entry)
+{
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) continue;
+      if(OrderMagicNumber() != MagicNumber) continue;
+      if(OrderType() <= OP_SELL) continue; // Skip market orders
+      if(OrderSymbol() != symbol) continue;
+
+      // Match by entry price (within small tolerance)
+      if(entry > 0 && MathAbs(OrderOpenPrice() - entry) > 1) continue;
+
+      bool deleted = OrderDelete(OrderTicket());
+      if(deleted)
+         Print("Cancelled MT4 pending #", OrderTicket(), " ", symbol);
+      else
+         Print("Failed to cancel #", OrderTicket(), ": ", GetLastError());
+      return; // Cancel first match
+   }
+   Print("No matching pending order found for ", symbol, " @ ", entry);
+}
+
+void ClosePositionOnMT4(string symbol, string side)
+{
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) continue;
+      if(OrderMagicNumber() != MagicNumber) continue;
+      if(OrderType() > OP_SELL) continue; // Only market orders
+      if(OrderSymbol() != symbol) continue;
+
+      // Match side
+      if(side == "buy" && OrderType() != OP_BUY) continue;
+      if(side == "sell" && OrderType() != OP_SELL) continue;
+
+      double closePrice = (OrderType() == OP_BUY) ? MarketInfo(symbol, MODE_BID) : MarketInfo(symbol, MODE_ASK);
+      bool closed = OrderClose(OrderTicket(), OrderLots(), closePrice, Slippage, clrRed);
+
+      if(closed)
+         Print("Closed MT4 position #", OrderTicket(), " ", symbol, " at ", closePrice);
+      else
+         Print("Failed to close #", OrderTicket(), ": ", GetLastError());
+      return; // Close first match
+   }
+   Print("No matching position found for ", symbol, " ", side);
 }
 
 //+------------------------------------------------------------------+

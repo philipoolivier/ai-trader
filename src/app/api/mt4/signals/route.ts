@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false })
       .limit(20)
 
-    // Pending order signals
+    // Pending order signals (new orders to place)
     const pendingSignals = (pending || []).map(order => ({
       id: order.id,
       source: 'pending_order',
@@ -61,8 +61,51 @@ export async function GET(request: Request) {
       created: order.created_at,
     }))
 
+    // Commands: cancelled orders + closed positions from web app
+    const commands: { action: string; symbol: string; side: string; entry?: number; id: string }[] = []
+
+    // Cancelled pending orders (user cancelled on web app)
+    const { data: cancelled } = await supabase
+      .from('pending_orders')
+      .select('*')
+      .eq('status', 'cancelled')
+      .gt('updated_at', new Date(Date.now() - 60000).toISOString()) // Last 60 seconds
+
+    if (cancelled) {
+      for (const order of cancelled) {
+        commands.push({
+          action: 'cancel_pending',
+          symbol: mapSymbolToMT4(order.symbol),
+          side: order.side,
+          entry: parseFloat(order.entry_price),
+          id: order.id,
+        })
+      }
+    }
+
+    // Closed positions (user clicked Close on web app)
+    // Check for positions with quantity=0 that were recently updated
+    const { data: closedPositions } = await supabase
+      .from('positions')
+      .select('*')
+      .eq('portfolio_id', (await supabase.from('portfolios').select('id').eq('user_id', 'default-user').single()).data?.id || '')
+      .eq('quantity', 0)
+      .gt('updated_at', new Date(Date.now() - 60000).toISOString())
+
+    if (closedPositions) {
+      for (const pos of closedPositions) {
+        commands.push({
+          action: 'close_position',
+          symbol: mapSymbolToMT4(pos.symbol),
+          side: pos.side === 'long' ? 'buy' : 'sell',
+          id: pos.id,
+        })
+      }
+    }
+
     return NextResponse.json({
       signals: pendingSignals,
+      commands,
       timestamp: new Date().toISOString(),
     })
   } catch (error: unknown) {
