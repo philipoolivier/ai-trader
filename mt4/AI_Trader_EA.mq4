@@ -296,13 +296,15 @@ void ProcessOneSignal(string json)
       }
    }
 
-   // Handle close commands — close_market type OR entry near 0 = close existing position
-   if(type == "close_market" || entry < 0.001)
+   // Handle close commands — entry price < 0.01 means "close existing position"
+   if(entry > 0 && entry < 0.01)
    {
-      Print("CLOSE command for ", symbol, " side=", side, " type=", type, " entry=", entry);
-      // side is the CLOSING side (sell to close a buy, buy to close a sell)
+      Print(">>> CLOSE COMMAND: ", symbol, " closingSide=", side, " entry=", entry);
+      // side is the closing side (sell = close a buy, buy = close a sell)
       string positionSide = (side == "sell") ? "buy" : "sell";
-      ClosePositionOnMT4(symbol, positionSide);
+      Print(">>> Looking to close ", symbol, " ", positionSide);
+      bool ok = ClosePositionOnMT4(symbol, positionSide);
+      Print(">>> Close result: ", ok);
       ConfirmSignal(id, 0, "executed");
       MarkProcessed(id);
       return;
