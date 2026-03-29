@@ -26,18 +26,38 @@ export async function POST(request: Request) {
     const closeSide = position.side === 'long' ? 'sell' : 'buy'
     console.log('[CLOSE] Creating close_market order:', position.symbol, 'closeSide:', closeSide, 'qty:', position.quantity)
 
-    const { data: order, error: insertError } = await supabase
+    // Try close_market first, fall back to sell_stop/buy_stop if constraint fails
+    let insertResult = await supabase
       .from('pending_orders')
       .insert({
         symbol: position.symbol,
         side: closeSide,
         lot_size: parseFloat(position.quantity),
-        entry_price: 0.00001, // Minimal non-zero value
+        entry_price: 0.00001,
         order_type: 'close_market',
         status: 'pending',
       })
       .select()
       .single()
+
+    // If close_market fails (constraint), use sell_stop/buy_stop with entry=0 as marker
+    if (insertResult.error) {
+      console.log('[CLOSE] close_market failed, trying fallback:', insertResult.error.message)
+      insertResult = await supabase
+        .from('pending_orders')
+        .insert({
+          symbol: position.symbol,
+          side: closeSide,
+          lot_size: parseFloat(position.quantity),
+          entry_price: 0.00001,
+          order_type: closeSide === 'sell' ? 'sell_stop' : 'buy_stop',
+          status: 'pending',
+        })
+        .select()
+        .single()
+    }
+
+    const { data: order, error: insertError } = insertResult
 
     if (insertError) {
       console.error('[CLOSE] INSERT FAILED:', insertError.message, insertError.details, insertError.hint)
