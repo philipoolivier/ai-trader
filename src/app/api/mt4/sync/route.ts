@@ -67,59 +67,87 @@ export async function POST(request: Request) {
         mt4Map.set(`${pos.symbol}_${pos.side}`, pos)
       }
 
-      // Build map of DB positions
-      const dbMap = new Map<string, typeof dbPositions extends (infer T)[] | null ? T : never>()
-      if (dbPositions) {
-        for (const dbPos of dbPositions) {
-          const sym = dbPos.symbol.replace('/', '').toUpperCase()
-          const side = dbPos.side === 'long' ? 'buy' : 'sell'
-          dbMap.set(`${sym}_${side}`, dbPos)
+      // Aggregate MT4 positions by symbol (MT4 can have multiple orders per symbol)
+      const mt4Aggregated = new Map<string, { symbol: string; side: string; totalLots: number; avgPrice: number; count: number }>()
+      for (const pos of openPositions) {
+        const key = pos.symbol
+        const existing = mt4Aggregated.get(key)
+        if (existing) {
+          const totalValue = existing.avgPrice * existing.totalLots + pos.openPrice * pos.lots
+          existing.totalLots += pos.lots
+          existing.avgPrice = totalValue / existing.totalLots
+          existing.count++
+        } else {
+          mt4Aggregated.set(key, {
+            symbol: pos.symbol,
+            side: pos.side,
+            totalLots: pos.lots,
+            avgPrice: pos.openPrice,
+            count: 1,
+          })
         }
       }
 
-      // Create/update positions from MT4
-      for (const pos of openPositions) {
-        const key = `${pos.symbol}_${pos.side}`
-        const existing = dbMap.get(key)
-        const positionSide = pos.side === 'buy' ? 'long' : 'short'
+      // Get current DB positions
+      const dbSymbols = new Set<string>()
+      if (dbPositions) {
+        for (const dbPos of dbPositions) {
+          dbSymbols.add(dbPos.symbol.replace('/', '').toUpperCase())
+        }
+      }
 
-        if (existing) {
-          // Update existing position
-          await supabase
-            .from('positions')
-            .update({
-              quantity: pos.lots,
-              avg_price: pos.openPrice,
-              side: positionSide,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', existing.id)
-        } else {
-          // Create new position from MT4
-          await supabase
+      // Upsert each aggregated position
+      const aggValues = Array.from(mt4Aggregated.values())
+      for (const agg of aggValues) {
+        const positionSide = agg.side === 'buy' ? 'long' : 'short'
+        const sym = agg.symbol.toUpperCase()
+
+        // Try update first
+        const { data: updated } = await supabase
+          .from('positions')
+          .update({
+            quantity: agg.totalLots,
+            avg_price: agg.avgPrice,
+            side: positionSide,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('portfolio_id', portfolio.id)
+          .eq('symbol', sym)
+          .select('id')
+
+        if (!updated || updated.length === 0) {
+          // No existing row — insert
+          const { error: insErr } = await supabase
             .from('positions')
             .insert({
               portfolio_id: portfolio.id,
-              symbol: pos.symbol,
-              quantity: pos.lots,
-              avg_price: pos.openPrice,
+              symbol: sym,
+              quantity: agg.totalLots,
+              avg_price: agg.avgPrice,
               side: positionSide,
             })
-          synced.push(`Created position: ${pos.symbol} ${positionSide} ${pos.lots} lots`)
+          if (insErr) {
+            console.error('Position insert failed:', sym, insErr.message)
+          } else {
+            synced.push(`Created: ${sym} ${positionSide} ${agg.totalLots} lots`)
+          }
         }
-        dbMap.delete(key) // Mark as matched
+
+        dbSymbols.delete(sym)
       }
 
       // Close DB positions not on MT4
-      const remaining = Array.from(dbMap.values())
-      for (const dbPos of remaining) {
-        const qty = parseFloat(dbPos.quantity) || 0
-        if (qty <= 0) continue
-        await supabase
-          .from('positions')
-          .update({ quantity: 0, updated_at: new Date().toISOString() })
-          .eq('id', dbPos.id)
-        synced.push(`Closed position: ${dbPos.symbol} (not on MT4)`)
+      if (dbPositions) {
+        for (const dbPos of dbPositions) {
+          const sym = dbPos.symbol.replace('/', '').toUpperCase()
+          if (dbSymbols.has(sym) && parseFloat(dbPos.quantity) > 0) {
+            await supabase
+              .from('positions')
+              .update({ quantity: 0, updated_at: new Date().toISOString() })
+              .eq('id', dbPos.id)
+            synced.push(`Closed: ${sym} (not on MT4)`)
+          }
+        }
       }
 
       // ── Sync pending orders from MT4 using ticket as unique key ──
