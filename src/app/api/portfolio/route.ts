@@ -33,7 +33,7 @@ export async function GET() {
       .from('positions')
       .select('*')
       .eq('portfolio_id', portfolio.id)
-      .gt('quantity', 0)
+      .neq('quantity', 0)
       .order('updated_at', { ascending: false })
 
     // Get recent trades

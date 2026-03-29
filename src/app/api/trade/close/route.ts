@@ -9,62 +9,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Position ID required' }, { status: 400 })
     }
 
-    const { data: position, error: posErr } = await supabase
+    const { data: position } = await supabase
       .from('positions')
       .select('*')
       .eq('id', positionId)
       .single()
 
-    if (posErr) {
-      return NextResponse.json({ error: `Position lookup failed: ${posErr.message}` }, { status: 404 })
-    }
     if (!position) {
       return NextResponse.json({ error: 'Position not found' }, { status: 404 })
     }
 
-    const symbol = position.symbol.replace('/', '').toUpperCase()
-    const closeSide = position.side === 'long' ? 'sell' : 'buy'
-    const orderType = closeSide === 'sell' ? 'sell_stop' : 'buy_stop'
-
-    // Insert close signal into pending_orders
-    const insertData = {
-      symbol: symbol,
-      side: closeSide,
-      lot_size: 0.01,
-      entry_price: 0.001,
-      stop_loss: null,
-      take_profit: null,
-      order_type: orderType,
-      status: 'pending',
-    }
-
-    const { data: order, error: insertErr } = await supabase
-      .from('pending_orders')
-      .insert(insertData)
-      .select('id, symbol, side, order_type, entry_price, status')
-      .single()
-
-    if (insertErr) {
-      return NextResponse.json({
-        error: `DB insert failed: ${insertErr.message} | code: ${insertErr.code} | details: ${insertErr.details}`,
-        insertData,
-      }, { status: 500 })
-    }
-
-    // Verify it was actually inserted
-    const { data: verify } = await supabase
-      .from('pending_orders')
-      .select('id, status, mt4_ticket')
-      .eq('id', order.id)
-      .single()
+    // Just mark the position for closing by setting quantity to -1
+    // (negative = close requested, sync won't recreate it, signals API sends close command)
+    await supabase
+      .from('positions')
+      .update({ quantity: -1, updated_at: new Date().toISOString() })
+      .eq('id', positionId)
 
     return NextResponse.json({
-      message: `Closing ${symbol} — order ${order.id} created (verified: ${verify ? 'YES' : 'NO'})`,
-      order,
-      verified: !!verify,
+      message: `Closing ${position.symbol} — sending to MT4`,
     })
   } catch (error: unknown) {
-    const msg = error instanceof Error ? `${error.message} ${error.stack}` : 'Unknown error'
+    const msg = error instanceof Error ? error.message : 'Failed'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

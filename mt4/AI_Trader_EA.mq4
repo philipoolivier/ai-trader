@@ -297,16 +297,10 @@ void ProcessOneSignal(string json)
       }
    }
 
-   // Handle close commands — entry price < 0.01 means "close existing position"
+   // Skip close signals that come through pending_orders (entry near 0)
    if(entry > 0 && entry < 0.01)
    {
-      Print(">>> CLOSE COMMAND: ", symbol, " closingSide=", side, " entry=", entry);
-      // side is the closing side (sell = close a buy, buy = close a sell)
-      string positionSide = (side == "sell") ? "buy" : "sell";
-      Print(">>> Looking to close ", symbol, " ", positionSide);
-      bool ok = ClosePositionOnMT4(symbol, positionSide);
-      Print(">>> Close result: ", ok);
-      ConfirmSignal(id, 0, "executed");
+      Print("Skipping close signal in pending_orders (handled via commands): ", symbol);
       MarkProcessed(id);
       return;
    }

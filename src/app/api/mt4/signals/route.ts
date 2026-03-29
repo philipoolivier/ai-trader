@@ -69,8 +69,29 @@ export async function GET(request: Request) {
       }
     }
 
-    // Close commands come through pending_orders with entry_price near 0
-    // EA detects entry < 0.01 and closes the position instead of opening
+    // Close commands — positions with quantity < 0 (close requested from portfolio)
+    {
+      const { data: pf } = await supabase
+        .from('portfolios').select('id').eq('user_id', 'default-user').single()
+      if (pf) {
+        const { data: closingPositions } = await supabase
+          .from('positions')
+          .select('*')
+          .eq('portfolio_id', pf.id)
+          .lt('quantity', 0)
+
+        if (closingPositions && closingPositions.length > 0) {
+          for (const pos of closingPositions) {
+            commands.push({
+              action: 'close_position',
+              symbol: mapSymbolToMT4(pos.symbol),
+              side: pos.side === 'long' ? 'buy' : 'sell',
+              id: `close-${pos.id}`,
+            })
+          }
+        }
+      }
+    }
 
     return NextResponse.json({ signals, commands, timestamp: new Date().toISOString() })
   } catch (error: unknown) {

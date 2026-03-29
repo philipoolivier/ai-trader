@@ -102,6 +102,20 @@ export async function POST(request: Request) {
         const positionSide = agg.side === 'buy' ? 'long' : 'short'
         const sym = agg.symbol.toUpperCase()
 
+        // Check if position is marked for closing (quantity = -1) — don't overwrite
+        const { data: existingCheck } = await supabase
+          .from('positions')
+          .select('id, quantity')
+          .eq('portfolio_id', portfolio.id)
+          .eq('symbol', sym)
+          .single()
+
+        if (existingCheck && parseFloat(existingCheck.quantity) < 0) {
+          // Close requested — don't update, let the EA close it
+          dbSymbols.delete(sym)
+          continue
+        }
+
         // Try update first
         const { data: updated } = await supabase
           .from('positions')
@@ -151,9 +165,10 @@ export async function POST(request: Request) {
       }
 
       // ── Sync pending orders from MT4 using ticket as unique key ──
-      const mt4Tickets = new Set<number>()
+      // Use strings for comparison (Supabase returns integers as numbers or strings)
+      const mt4TicketStrings = new Set<string>()
       for (const p of pendingPositions) {
-        mt4Tickets.add(p.ticket)
+        mt4TicketStrings.add(String(p.ticket))
       }
 
       // Get all pending orders from DB (pending AND cancelled — need cancelled to avoid re-creating)
@@ -214,7 +229,7 @@ export async function POST(request: Request) {
         for (const dbOrder of dbPending) {
           if (dbOrder.status !== 'pending') continue
           if (!dbOrder.mt4_ticket) continue
-          if (!mt4Tickets.has(dbOrder.mt4_ticket)) {
+          if (!mt4TicketStrings.has(String(dbOrder.mt4_ticket))) {
             await supabase
               .from('pending_orders')
               .update({ status: 'triggered', updated_at: new Date().toISOString() })
