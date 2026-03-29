@@ -503,8 +503,16 @@ void ProcessCommands(string json)
       }
       else if(action == "close_position")
       {
-         Print("CMD: close position ", symbol, " ", side);
-         ClosePositionOnMT4(symbol, side);
+         Print("CMD: close position ", symbol, " side_from_api=", side);
+         // Try both sides — just close whatever we find for this symbol
+         bool closed = ClosePositionOnMT4(symbol, side);
+         if(!closed)
+         {
+            // Try opposite side in case the API sent closing side vs position side
+            string oppSide = (side == "buy") ? "sell" : "buy";
+            Print("CMD: retrying with opposite side: ", oppSide);
+            ClosePositionOnMT4(symbol, oppSide);
+         }
       }
 
       objStart = objEnd + 1;
