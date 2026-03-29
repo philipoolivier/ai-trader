@@ -60,9 +60,18 @@ The chart has these indicators — read them carefully:
 - Read the session directly from the chart — do NOT guess based on clock time
 - Session highs/lows are key levels. Sweeps of session highs/lows = liquidity grabs.
 
+**PDH / PDL (Previous Day High / Low):**
+- Labeled horizontal lines on the chart showing yesterday's high and low
+- These are CRITICAL institutional levels — large orders cluster here
+- PDH = major resistance. If price breaks above PDH, it's bullish — look for longs on retest
+- PDL = major support. If price breaks below PDL, it's bearish — look for shorts on retest
+- Price between PDH and PDL = ranging within yesterday's range
+- A sweep of PDH/PDL (wick through then reverse) = liquidity grab → trade the reversal
+- Use PDH/PDL as TP targets when trading from S&D zones
+
 **Horizontal Lines:**
 - BLUE vertical lines = session/day break lines (where a new trading day starts)
-- Read any labeled horizontal lines (PDH, PDL, etc.) with their exact prices
+- Read any other labeled horizontal lines with their exact prices
 
 IMPORTANT: Each screenshot is a DIFFERENT TIMEFRAME. Identify which timeframe each screenshot shows (5m, 15m, 1H, 4H) from the chart header or candle size.
 
@@ -102,24 +111,37 @@ Apply these S&D trading rules when analyzing the chart:
 
 **Entry Logic:**
 - LONG: Wait for price to drop INTO a fresh demand zone (dark green). Enter BUY LIMIT at the top edge.
+  - Higher conviction if: zone is near PDL, zone aligns with VWAP -2σ, or zone is at a session low sweep
 - SHORT: Wait for price to rally INTO a fresh supply zone (dark red). Enter SELL LIMIT at the bottom edge.
+  - Higher conviction if: zone is near PDH, zone aligns with VWAP +2σ, or zone is at a session high sweep
 - BREAKOUT: If a tested (light) zone breaks, enter in the direction of the break (SELL STOP below tested demand, BUY STOP above tested supply).
+- PDH/PDL SWEEP: If price sweeps PDH or PDL (wicks through then reverses), this is a HIGH-PROBABILITY reversal entry — combine with nearest S&D zone
 - DO NOT enter in the middle between zones — wait for price to reach a zone.
 
 **SL Logic:**
 - Place SL just beyond the far edge of the zone. If the zone breaks, the trade idea is wrong.
 - For demand zones: SL below the bottom of the zone.
 - For supply zones: SL above the top of the zone.
+- If the zone edge is very close to PDH/PDL, place SL beyond PDH/PDL instead (stronger invalidation).
 
-**TP Logic:**
-- Target the nearest OPPOSITE fresh zone (short → nearest fresh demand below, long → nearest fresh supply above).
-- If no opposite zone is visible, target the nearest session high/low or structural level.
-- Partial close at first target, runner to next zone.
+**TP Logic (use ALL available levels, choose the nearest):**
+- TP1 (scalp): VWAP center line (mean reversion target)
+- TP2: Nearest OPPOSITE fresh S&D zone
+- TP3: PDH or PDL (if trading toward it)
+- TP4: Nearest intact session high/low
+- Pick the nearest valid target as TP1 for partial close, further targets for runners.
+
+**VWAP Confluence:**
+- Price below VWAP = bearish bias → favor shorts from supply zones
+- Price above VWAP = bullish bias → favor longs from demand zones
+- If S&D zone aligns with VWAP ±2σ band = VERY high probability entry
+- VWAP center line = natural TP for mean reversion trades
 
 **No Trade Conditions:**
 - Price is in the middle between zones with no nearby zone to trade off.
 - All nearby zones are tested (light colored) — wait for fresh zones to form.
 - ADX < 20 with no clear zone reaction — choppy, avoid.
+- Price is inside a tight range between PDH and PDL with no S&D zones nearby.
 
 ### Forward-Looking: HTF Zone Plays
 If you see fresh zones on higher timeframes (1H, 4H) that price hasn't reached yet, create ADDITIONAL trade scenarios for when price eventually reaches those zones. These are "set and forget" pending orders:
@@ -293,24 +315,37 @@ Apply these S&D trading rules when analyzing the chart:
 
 **Entry Logic:**
 - LONG: Wait for price to drop INTO a fresh demand zone (dark green). Enter BUY LIMIT at the top edge.
+  - Higher conviction if: zone is near PDL, zone aligns with VWAP -2σ, or zone is at a session low sweep
 - SHORT: Wait for price to rally INTO a fresh supply zone (dark red). Enter SELL LIMIT at the bottom edge.
+  - Higher conviction if: zone is near PDH, zone aligns with VWAP +2σ, or zone is at a session high sweep
 - BREAKOUT: If a tested (light) zone breaks, enter in the direction of the break (SELL STOP below tested demand, BUY STOP above tested supply).
+- PDH/PDL SWEEP: If price sweeps PDH or PDL (wicks through then reverses), this is a HIGH-PROBABILITY reversal entry — combine with nearest S&D zone
 - DO NOT enter in the middle between zones — wait for price to reach a zone.
 
 **SL Logic:**
 - Place SL just beyond the far edge of the zone. If the zone breaks, the trade idea is wrong.
 - For demand zones: SL below the bottom of the zone.
 - For supply zones: SL above the top of the zone.
+- If the zone edge is very close to PDH/PDL, place SL beyond PDH/PDL instead (stronger invalidation).
 
-**TP Logic:**
-- Target the nearest OPPOSITE fresh zone (short → nearest fresh demand below, long → nearest fresh supply above).
-- If no opposite zone is visible, target the nearest session high/low or structural level.
-- Partial close at first target, runner to next zone.
+**TP Logic (use ALL available levels, choose the nearest):**
+- TP1 (scalp): VWAP center line (mean reversion target)
+- TP2: Nearest OPPOSITE fresh S&D zone
+- TP3: PDH or PDL (if trading toward it)
+- TP4: Nearest intact session high/low
+- Pick the nearest valid target as TP1 for partial close, further targets for runners.
+
+**VWAP Confluence:**
+- Price below VWAP = bearish bias → favor shorts from supply zones
+- Price above VWAP = bullish bias → favor longs from demand zones
+- If S&D zone aligns with VWAP ±2σ band = VERY high probability entry
+- VWAP center line = natural TP for mean reversion trades
 
 **No Trade Conditions:**
 - Price is in the middle between zones with no nearby zone to trade off.
 - All nearby zones are tested (light colored) — wait for fresh zones to form.
 - ADX < 20 with no clear zone reaction — choppy, avoid.
+- Price is inside a tight range between PDH and PDL with no S&D zones nearby.
 
 ### Forward-Looking: HTF Zone Plays
 If you see fresh zones on higher timeframes (1H, 4H) that price hasn't reached yet, create ADDITIONAL trade scenarios for when price eventually reaches those zones. These are "set and forget" pending orders:
