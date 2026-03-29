@@ -89,40 +89,38 @@ export async function POST(request: Request) {
         mt4Tickets.add(p.ticket)
       }
 
-      // Get ALL pending orders from DB (any status)
+      // Get all pending orders from DB (pending AND cancelled — need cancelled to avoid re-creating)
       const { data: dbPending } = await supabase
         .from('pending_orders')
         .select('*')
-        .eq('status', 'pending')
+        .in('status', ['pending', 'cancelled', 'triggered'])
 
-      // Build set of DB mt4_tickets
-      const dbTickets = new Set<string>()
+      // Build set of ALL known mt4_tickets (any status — so we don't recreate cancelled ones)
+      const allKnownTickets = new Set<string>()
       if (dbPending) {
         for (const o of dbPending) {
-          if (o.mt4_ticket) dbTickets.add(String(o.mt4_ticket))
+          if (o.mt4_ticket) allKnownTickets.add(String(o.mt4_ticket))
         }
       }
 
       // Create DB records for MT4 pending orders not yet in DB
       for (const p of pendingPositions) {
-        if (!dbTickets.has(String(p.ticket))) {
-          // Also check if there's a matching order without a ticket (placed from web, not yet linked)
+        if (!allKnownTickets.has(String(p.ticket))) {
+          // Check if there's a matching order without a ticket (placed from web, not yet linked)
           let linked = false
-          if (dbPending) {
-            for (const o of dbPending) {
-              if (o.mt4_ticket) continue // Already linked
-              const sym = o.symbol.replace('/', '').toUpperCase()
-              const entry = parseFloat(o.entry_price)
-              if (sym === p.symbol && Math.abs(entry - p.openPrice) < 1 && o.side === p.side) {
-                // Link this DB order to the MT4 ticket
-                await supabase
-                  .from('pending_orders')
-                  .update({ mt4_ticket: p.ticket, updated_at: new Date().toISOString() })
-                  .eq('id', o.id)
-                linked = true
-                synced.push(`Linked pending ${p.symbol} to MT4 #${p.ticket}`)
-                break
-              }
+          const pendingOnly = (dbPending || []).filter(o => o.status === 'pending')
+          for (const o of pendingOnly) {
+            if (o.mt4_ticket) continue
+            const sym = o.symbol.replace('/', '').toUpperCase()
+            const entry = parseFloat(o.entry_price)
+            if (sym === p.symbol && Math.abs(entry - p.openPrice) < 1 && o.side === p.side) {
+              await supabase
+                .from('pending_orders')
+                .update({ mt4_ticket: p.ticket, updated_at: new Date().toISOString() })
+                .eq('id', o.id)
+              linked = true
+              synced.push(`Linked pending ${p.symbol} to MT4 #${p.ticket}`)
+              break
             }
           }
 
@@ -144,15 +142,17 @@ export async function POST(request: Request) {
       }
 
       // Remove DB pending orders whose MT4 ticket no longer exists on MT4
+      // Only affect orders that are still 'pending' (not already cancelled/triggered)
       if (dbPending) {
         for (const dbOrder of dbPending) {
-          if (!dbOrder.mt4_ticket) continue // Not linked to MT4 yet
+          if (dbOrder.status !== 'pending') continue
+          if (!dbOrder.mt4_ticket) continue
           if (!mt4Tickets.has(dbOrder.mt4_ticket)) {
             await supabase
               .from('pending_orders')
               .update({ status: 'triggered', updated_at: new Date().toISOString() })
               .eq('id', dbOrder.id)
-            synced.push(`Pending #${dbOrder.mt4_ticket} removed (not on MT4)`)
+            synced.push(`Pending #${dbOrder.mt4_ticket} filled/removed on MT4`)
           }
         }
       }
