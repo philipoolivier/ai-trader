@@ -47,12 +47,12 @@ export async function GET(request: Request) {
     // Commands: cancelled orders + closed positions from web app
     const commands: { action: string; symbol: string; side: string; entry?: number; id: string; mt4_ticket?: number }[] = []
 
-    // Recently cancelled pending orders (within last 30 seconds)
+    // Recently cancelled pending orders (within last 2 minutes)
     const { data: cancelled } = await supabase
       .from('pending_orders')
       .select('*')
       .eq('status', 'cancelled')
-      .gt('updated_at', new Date(Date.now() - 30000).toISOString())
+      .gt('updated_at', new Date(Date.now() - 120000).toISOString())
 
     if (cancelled) {
       for (const order of cancelled) {
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
             symbol: mapSymbolToMT4(order.symbol),
             side: order.side,
             entry: parseFloat(order.entry_price),
-            id: order.id,
+            id: `cancel-${order.id}`, // Different ID so EA doesn't skip it as "already processed"
             mt4_ticket: order.mt4_ticket,
           })
         }

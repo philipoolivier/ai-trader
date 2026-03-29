@@ -100,7 +100,7 @@ void SyncFullState()
    for(int i = OrdersTotal() - 1; i >= 0; i--)
    {
       if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) continue;
-      if(OrderMagicNumber() != MagicNumber) continue;
+      // Report ALL positions (not just EA's magic number) so portfolio mirrors full account
 
       int digits = (int)MarketInfo(OrderSymbol(), MODE_DIGITS);
       if(digits == 0) digits = 5;
@@ -108,6 +108,7 @@ void SyncFullState()
       if(posCount > 0) posJson += ",";
       posJson += "{";
       posJson += "\"ticket\":" + IntegerToString(OrderTicket()) + ",";
+      posJson += "\"magic\":" + IntegerToString(OrderMagicNumber()) + ",";
       posJson += "\"symbol\":\"" + OrderSymbol() + "\",";
       posJson += "\"type\":" + IntegerToString(OrderType()) + ",";
       posJson += "\"side\":\"" + (OrderType() == OP_BUY ? "buy" : OrderType() == OP_SELL ? "sell" :
@@ -571,7 +572,7 @@ bool ClosePositionOnMT4(string symbol, string side)
    for(int i = OrdersTotal() - 1; i >= 0; i--)
    {
       if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) continue;
-      if(OrderMagicNumber() != MagicNumber) continue;
+      // Close ANY matching position (not just EA's magic number)
       if(OrderType() > OP_SELL) continue;
 
       Print("Checking order #", OrderTicket(), " ", OrderSymbol(), " type=", OrderType());
