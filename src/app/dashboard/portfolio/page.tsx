@@ -153,24 +153,25 @@ export default function PortfolioPage() {
   const totalLosses = Math.abs(losingTrades.reduce((sum, t) => sum + (t.pnl || 0), 0))
   const profitFactor = totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? Infinity : 0
 
-  // Build equity curve: starts at initial balance, each closed trade adds a point
-  const equityCurve: { date: string; value: number }[] = [
-    { date: 'Start', value: initialBalance },
-  ]
-  let runningBalance = initialBalance
+  // Build equity curve from closed trades only
   const sortedTrades = [...(data?.trades || [])]
     .filter(t => t.pnl !== null)
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
-  for (const trade of sortedTrades) {
-    runningBalance += trade.pnl || 0
-    equityCurve.push({
-      date: new Date(trade.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      value: runningBalance,
-    })
+  const equityCurve: { date: string; value: number }[] = []
+
+  if (sortedTrades.length > 0) {
+    equityCurve.push({ date: 'Start', value: initialBalance })
+    let runningBalance = initialBalance
+    for (const trade of sortedTrades) {
+      runningBalance += trade.pnl || 0
+      equityCurve.push({
+        date: new Date(trade.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        value: runningBalance,
+      })
+    }
+    equityCurve.push({ date: 'Now', value: balance })
   }
-  // Always add current balance as final point
-  equityCurve.push({ date: 'Now', value: balance })
 
   return (
     <div className="space-y-6">
