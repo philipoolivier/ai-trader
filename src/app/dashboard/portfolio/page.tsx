@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { DollarSign, TrendingUp, Target, Percent, RotateCcw, Settings2 } from 'lucide-react'
 import PendingOrdersPanel from '@/components/PendingOrdersPanel'
+import LogPanel from '@/components/LogPanel'
 import StatCard from '@/components/StatCard'
 import PositionsTable from '@/components/PositionsTable'
 import PortfolioChart from '@/components/PortfolioChart'
@@ -348,6 +349,9 @@ export default function PortfolioPage() {
         </div>
         <TradeHistory trades={data?.trades || []} loading={loading} />
       </div>
+
+      {/* System Log */}
+      <LogPanel />
     </div>
   )
 }

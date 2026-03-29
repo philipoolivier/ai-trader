@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { formatCurrency, formatPercent, getPnlColor, cn } from '@/lib/utils'
 import { getLotUnit } from '@/lib/trading-config'
+import { addLog } from '@/lib/log-store'
 import MiniPriceLadder from '@/components/MiniPriceLadder'
 import type { PositionWithQuote } from '@/types'
 import { TrendingUp, TrendingDown, X } from 'lucide-react'
@@ -27,7 +28,8 @@ export default function PositionsTable({ positions, loading, onSymbolClick, onPo
     setCloseMessage(null)
 
     try {
-      console.log('[CLOSE UI] Sending close request for', positionId, symbol)
+      addLog('info', `Closing ${symbol} (${positionId})...`)
+
       const res = await fetch('/api/trade/close', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -35,22 +37,23 @@ export default function PositionsTable({ positions, loading, onSymbolClick, onPo
       })
 
       const text = await res.text()
-      console.log('[CLOSE UI] Response status:', res.status, 'body:', text)
+      addLog('info', `Close response: HTTP ${res.status} — ${text.slice(0, 300)}`)
 
       let data
       try { data = JSON.parse(text) } catch { data = { error: text } }
 
       if (res.ok) {
+        addLog('success', `Close sent: ${data.message}`)
         setCloseMessage({ type: 'success', text: data.message || 'Close sent' })
-        // Delay refresh so message is visible
         setTimeout(() => onPositionClosed?.(), 3000)
       } else {
-        setCloseMessage({ type: 'error', text: data.error || `HTTP ${res.status}: ${text.slice(0, 200)}` })
+        addLog('error', `Close failed: ${data.error || res.status}`)
+        setCloseMessage({ type: 'error', text: data.error || `HTTP ${res.status}` })
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      console.error('[CLOSE UI] Error:', msg)
-      setCloseMessage({ type: 'error', text: `Request failed: ${msg}` })
+      addLog('error', `Close exception: ${msg}`)
+      setCloseMessage({ type: 'error', text: msg })
     } finally {
       setClosingId(null)
     }
