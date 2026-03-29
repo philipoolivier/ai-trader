@@ -26,11 +26,21 @@ export async function POST(request: Request) {
 
     // ── 1. Sync account balance from MT4 ──
     if (balance !== undefined) {
+      const updateData: Record<string, number> = { cash_balance: balance }
+
+      // On first MT4 sync (no closed trades yet), set initial_balance to match MT4
+      const { count } = await supabase
+        .from('trades')
+        .select('id', { count: 'exact', head: true })
+        .eq('portfolio_id', portfolio.id)
+
+      if (count === 0) {
+        updateData.initial_balance = balance
+      }
+
       await supabase
         .from('portfolios')
-        .update({
-          cash_balance: balance,
-        })
+        .update(updateData)
         .eq('id', portfolio.id)
       synced.push(`Balance: $${balance}`)
     }
