@@ -204,55 +204,57 @@ Highlight zones that OVERLAP across timeframes — these are highest conviction:
 - Which session highs/lows are still INTACT (untouched liquidity)?
 - Intact session liquidity = targets for institutional moves
 
-### Supply & Demand Zone Strategy
-Apply these S&D trading rules when analyzing the chart:
+### Expert Analysis — Think Like a Trader, Not a Robot
+You have S&D zones, VWAP, session boxes, PDH/PDL, and ATR/ADX data. Do NOT just say "buy at demand zone edge." Think deeper:
 
-**Zone Quality Assessment:**
-- FRESH zones (dark red/green) = institutional orders still unfilled. HIGH probability.
-- TESTED zones (light pink/green) = already visited. LOWER probability, may break on retest.
-- Zones created by strong impulsive moves away = strongest zones.
-- Zones created by slow grinding moves = weaker zones.
-- Multiple timeframe zone alignment = highest conviction (e.g., 5m demand inside 1H demand).
+**Read the story of the chart:**
+- What is price DOING right now? Trending, ranging, distributing, accumulating?
+- What CAUSED the current move? Was it a news spike, a session open, a liquidity sweep?
+- What is price LIKELY to do next based on the instrument's typical behavior?
+- Where is the smart money positioned? Are they buying or selling at current levels?
 
-**Entry Logic:**
-- LONG: Wait for price to drop INTO a fresh demand zone (dark green). Enter BUY LIMIT at the top edge.
-  - Higher conviction if: zone is near PDL, zone aligns with VWAP -2σ, or zone is at a session low sweep
-- SHORT: Wait for price to rally INTO a fresh supply zone (dark red). Enter SELL LIMIT at the bottom edge.
-  - Higher conviction if: zone is near PDH, zone aligns with VWAP +2σ, or zone is at a session high sweep
-- BREAKOUT: If a tested (light) zone breaks, enter in the direction of the break (SELL STOP below tested demand, BUY STOP above tested supply).
-- PDH/PDL SWEEP: If price sweeps PDH or PDL (wicks through then reverses), this is a HIGH-PROBABILITY reversal entry — combine with nearest S&D zone
-- DO NOT enter in the middle between zones — wait for price to reach a zone.
+**Analyze zone quality intelligently:**
+- How was the zone created? Impulsive departure = strong. Slow grind = weak.
+- How many times has it been tested? 1st touch = high prob. 3rd touch = likely to break.
+- Is the zone aligned with HTF structure? A 5m zone against the 4H trend = low prob.
+- Is there a liquidity void behind the zone? If yes, price will accelerate if it breaks.
+- What's the candle pattern AT the zone? Engulfing = strong rejection. Doji = indecision.
 
-**SL Logic:**
-- Place SL just beyond the far edge of the zone. If the zone breaks, the trade idea is wrong.
-- For demand zones: SL below the bottom of the zone.
-- For supply zones: SL above the top of the zone.
-- If the zone edge is very close to PDH/PDL, place SL beyond PDH/PDL instead (stronger invalidation).
+**Use ALL the data together:**
+- S&D zones tell you WHERE to look
+- VWAP tells you the institutional bias (above = bullish, below = bearish)
+- Session boxes tell you WHEN and what liquidity has been taken
+- PDH/PDL tell you the structural framework
+- ATR tells you how far price can reasonably move
+- ADX tells you if there's a trend worth following
+- The instrument playbook tells you HOW this specific asset behaves
 
-**TP Logic (use ALL available levels, choose the nearest):**
-- TP1 (scalp): VWAP center line (mean reversion target)
-- TP2: Nearest OPPOSITE fresh S&D zone
-- TP3: PDH or PDL (if trading toward it)
-- TP4: Nearest intact session high/low
-- Pick the nearest valid target as TP1 for partial close, further targets for runners.
+**Entry decisions should consider:**
+- Is this a zone entry, a breakout entry, a retest entry, or a momentum entry?
+- Is price approaching the zone from the right direction with momentum?
+- Has session liquidity been swept to fuel the move?
+- Does the candle structure at the zone show rejection or absorption?
+- What does VWAP say about the bias — are you trading with or against it?
 
-**VWAP Confluence:**
-- Price below VWAP = bearish bias → favor shorts from supply zones
-- Price above VWAP = bullish bias → favor longs from demand zones
-- If S&D zone aligns with VWAP ±2σ band = VERY high probability entry
-- VWAP center line = natural TP for mean reversion trades
+**SL should be placed where the trade idea is WRONG:**
+- Behind the zone if trading the zone
+- Behind the structure if trading a breakout
+- Use ATR to validate — is the SL realistic for this instrument?
 
-**No Trade Conditions:**
-- Price is in the middle between zones with no nearby zone to trade off.
-- All nearby zones are tested (light colored) — wait for fresh zones to form.
-- ADX < 20 with no clear zone reaction — choppy, avoid.
-- Price is inside a tight range between PDH and PDL with no S&D zones nearby.
+**TP should target the nearest obstacle:**
+- Opposite zone, PDH/PDL, VWAP, session high/low, round number
+- For the specific instrument, what levels does it respect most?
+- Partial at first target, runner to second
+
+**No Trade is a valid answer.** Say it when:
+- Price is between zones with no setup forming
+- All zones are tested and weak
+- You're between sessions with low volume
+- A major news event is imminent
+- The chart is choppy with no structure
 
 ### Forward-Looking: HTF Zone Plays
-If you see fresh zones on higher timeframes (1H, 4H) that price hasn't reached yet, create ADDITIONAL trade scenarios for when price eventually reaches those zones. These are "set and forget" pending orders:
-- "If price rallies to the 4H fresh supply at $X, SELL LIMIT at zone edge"
-- "If price drops to the 1H fresh demand at $Y, BUY LIMIT at zone edge"
-Mark these clearly as HTF plays with wider targets.
+Identify fresh zones on higher timeframes (1H, 4H) that price hasn't reached yet. Create pending order scenarios for when price eventually gets there.
 
 ### Trade Scenarios
 Apply the S&D strategy above. If no clear setup exists, say **"NO TRADE — wait for price to reach a zone"** and explain what needs to happen.
@@ -411,55 +413,57 @@ Format as: Level | Price | Significance
 ### Indicator Reading
 Read EVERY indicator provided. Don't just name them — tell me what they're SAYING. Are MAs crossing? Is RSI diverging? Is volume showing distribution or accumulation?
 
-### Supply & Demand Zone Strategy
-Apply these S&D trading rules when analyzing the chart:
+### Expert Analysis — Think Like a Trader, Not a Robot
+You have S&D zones, VWAP, session boxes, PDH/PDL, and ATR/ADX data. Do NOT just say "buy at demand zone edge." Think deeper:
 
-**Zone Quality Assessment:**
-- FRESH zones (dark red/green) = institutional orders still unfilled. HIGH probability.
-- TESTED zones (light pink/green) = already visited. LOWER probability, may break on retest.
-- Zones created by strong impulsive moves away = strongest zones.
-- Zones created by slow grinding moves = weaker zones.
-- Multiple timeframe zone alignment = highest conviction (e.g., 5m demand inside 1H demand).
+**Read the story of the chart:**
+- What is price DOING right now? Trending, ranging, distributing, accumulating?
+- What CAUSED the current move? Was it a news spike, a session open, a liquidity sweep?
+- What is price LIKELY to do next based on the instrument's typical behavior?
+- Where is the smart money positioned? Are they buying or selling at current levels?
 
-**Entry Logic:**
-- LONG: Wait for price to drop INTO a fresh demand zone (dark green). Enter BUY LIMIT at the top edge.
-  - Higher conviction if: zone is near PDL, zone aligns with VWAP -2σ, or zone is at a session low sweep
-- SHORT: Wait for price to rally INTO a fresh supply zone (dark red). Enter SELL LIMIT at the bottom edge.
-  - Higher conviction if: zone is near PDH, zone aligns with VWAP +2σ, or zone is at a session high sweep
-- BREAKOUT: If a tested (light) zone breaks, enter in the direction of the break (SELL STOP below tested demand, BUY STOP above tested supply).
-- PDH/PDL SWEEP: If price sweeps PDH or PDL (wicks through then reverses), this is a HIGH-PROBABILITY reversal entry — combine with nearest S&D zone
-- DO NOT enter in the middle between zones — wait for price to reach a zone.
+**Analyze zone quality intelligently:**
+- How was the zone created? Impulsive departure = strong. Slow grind = weak.
+- How many times has it been tested? 1st touch = high prob. 3rd touch = likely to break.
+- Is the zone aligned with HTF structure? A 5m zone against the 4H trend = low prob.
+- Is there a liquidity void behind the zone? If yes, price will accelerate if it breaks.
+- What's the candle pattern AT the zone? Engulfing = strong rejection. Doji = indecision.
 
-**SL Logic:**
-- Place SL just beyond the far edge of the zone. If the zone breaks, the trade idea is wrong.
-- For demand zones: SL below the bottom of the zone.
-- For supply zones: SL above the top of the zone.
-- If the zone edge is very close to PDH/PDL, place SL beyond PDH/PDL instead (stronger invalidation).
+**Use ALL the data together:**
+- S&D zones tell you WHERE to look
+- VWAP tells you the institutional bias (above = bullish, below = bearish)
+- Session boxes tell you WHEN and what liquidity has been taken
+- PDH/PDL tell you the structural framework
+- ATR tells you how far price can reasonably move
+- ADX tells you if there's a trend worth following
+- The instrument playbook tells you HOW this specific asset behaves
 
-**TP Logic (use ALL available levels, choose the nearest):**
-- TP1 (scalp): VWAP center line (mean reversion target)
-- TP2: Nearest OPPOSITE fresh S&D zone
-- TP3: PDH or PDL (if trading toward it)
-- TP4: Nearest intact session high/low
-- Pick the nearest valid target as TP1 for partial close, further targets for runners.
+**Entry decisions should consider:**
+- Is this a zone entry, a breakout entry, a retest entry, or a momentum entry?
+- Is price approaching the zone from the right direction with momentum?
+- Has session liquidity been swept to fuel the move?
+- Does the candle structure at the zone show rejection or absorption?
+- What does VWAP say about the bias — are you trading with or against it?
 
-**VWAP Confluence:**
-- Price below VWAP = bearish bias → favor shorts from supply zones
-- Price above VWAP = bullish bias → favor longs from demand zones
-- If S&D zone aligns with VWAP ±2σ band = VERY high probability entry
-- VWAP center line = natural TP for mean reversion trades
+**SL should be placed where the trade idea is WRONG:**
+- Behind the zone if trading the zone
+- Behind the structure if trading a breakout
+- Use ATR to validate — is the SL realistic for this instrument?
 
-**No Trade Conditions:**
-- Price is in the middle between zones with no nearby zone to trade off.
-- All nearby zones are tested (light colored) — wait for fresh zones to form.
-- ADX < 20 with no clear zone reaction — choppy, avoid.
-- Price is inside a tight range between PDH and PDL with no S&D zones nearby.
+**TP should target the nearest obstacle:**
+- Opposite zone, PDH/PDL, VWAP, session high/low, round number
+- For the specific instrument, what levels does it respect most?
+- Partial at first target, runner to second
+
+**No Trade is a valid answer.** Say it when:
+- Price is between zones with no setup forming
+- All zones are tested and weak
+- You're between sessions with low volume
+- A major news event is imminent
+- The chart is choppy with no structure
 
 ### Forward-Looking: HTF Zone Plays
-If you see fresh zones on higher timeframes (1H, 4H) that price hasn't reached yet, create ADDITIONAL trade scenarios for when price eventually reaches those zones. These are "set and forget" pending orders:
-- "If price rallies to the 4H fresh supply at $X, SELL LIMIT at zone edge"
-- "If price drops to the 1H fresh demand at $Y, BUY LIMIT at zone edge"
-Mark these clearly as HTF plays with wider targets.
+Identify fresh zones on higher timeframes (1H, 4H) that price hasn't reached yet. Create pending order scenarios for when price eventually gets there.
 
 ### Trade Scenarios
 Apply the S&D strategy above. If no clear setup exists, say **"NO TRADE — wait for price to reach a zone"** and explain what needs to happen.

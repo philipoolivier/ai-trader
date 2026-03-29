@@ -72,34 +72,40 @@ async function doCapture(symbol, timeframes, originTabId, originWindowId) {
           await delay(6000); // Wait for chart + indicators to load
         }
 
-        // Auto-fit: double-click the price scale to reset vertical zoom
+        // Zoom out to show more zones and auto-fit the chart
         try {
           await chrome.scripting.executeScript({
             target: { tabId: openTabId },
             func: () => {
-              // The price scale is a separate pane on the right side of the chart
-              // Find it by looking for the narrow canvas/div on the right
+              // Press minus key several times to zoom out and show more data
+              for (let i = 0; i < 3; i++) {
+                document.dispatchEvent(new KeyboardEvent('keydown', {
+                  key: '-', code: 'Minus', bubbles: true, cancelable: true,
+                }));
+                document.dispatchEvent(new KeyboardEvent('keyup', {
+                  key: '-', code: 'Minus', bubbles: true, cancelable: true,
+                }));
+              }
+
+              // Double-click price scale to auto-fit vertically
               const containers = document.querySelectorAll('td, div');
               for (const el of containers) {
                 const rect = el.getBoundingClientRect();
-                // Price scale is typically ~60-80px wide, on the far right, full height
                 if (rect.width > 40 && rect.width < 120 && rect.height > 300 &&
                     rect.right > window.innerWidth - 150) {
-                  // Double-click to auto-scale
                   el.dispatchEvent(new MouseEvent('dblclick', {
                     clientX: rect.left + rect.width / 2,
                     clientY: rect.top + rect.height / 2,
                     bubbles: true, cancelable: true, view: window,
                   }));
-                  console.log('Double-clicked price scale at', rect.left, rect.top);
                   break;
                 }
               }
             },
           });
-        } catch (e) { console.log('Auto-fit:', e.message); }
+        } catch (e) { console.log('Zoom/fit:', e.message); }
 
-        await delay(1500);
+        await delay(2000);
 
         // Focus window for capture
         try {
