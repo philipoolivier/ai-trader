@@ -297,10 +297,11 @@ void ProcessOneSignal(string json)
       }
    }
 
-   // Skip close signals that come through pending_orders (entry near 0)
-   if(entry > 0 && entry < 0.01)
+   // Skip any signal with entry price < 1 — these are old close signals or junk
+   if(entry < 1.0)
    {
-      Print("Skipping close signal in pending_orders (handled via commands): ", symbol);
+      Print("Skipping junk signal (entry=", entry, "): ", symbol, " — confirming to clear it");
+      ConfirmSignal(id, 0, "executed");
       MarkProcessed(id);
       return;
    }

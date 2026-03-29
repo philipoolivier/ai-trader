@@ -31,7 +31,18 @@ export async function GET(request: Request) {
       console.log('[SIGNALS] Returning', pending.length, 'orders:', pending.map(o => `${o.order_type} ${o.symbol} id=${o.id}`).join(', '))
     }
 
-    const signals = (pending || []).map(order => ({
+    // Filter out junk entries (old close signals with entry < 1) and auto-clean them
+    const validPending = (pending || []).filter(order => {
+      const entry = parseFloat(order.entry_price)
+      if (entry < 1) {
+        // Auto-clean: mark as triggered so it doesn't keep showing up
+        supabase.from('pending_orders').update({ status: 'triggered' }).eq('id', order.id)
+        return false
+      }
+      return true
+    })
+
+    const signals = validPending.map(order => ({
       id: order.id,
       source: 'pending_order',
       symbol: mapSymbolToMT4(order.symbol),
