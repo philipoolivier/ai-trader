@@ -23,14 +23,21 @@ export async function POST(request: Request) {
 
     console.log('[CLOSE] Found:', position.symbol, position.side, 'qty:', position.quantity)
 
-    // Mark position as close_requested by setting side to 'closing_long' or 'closing_short'
+    // Mark position as close_requested
     const closingSide = position.side === 'long' ? 'closing_long' : 'closing_short'
-    await supabase
+    const { error: updateError } = await supabase
       .from('positions')
       .update({ side: closingSide, updated_at: new Date().toISOString() })
       .eq('id', positionId)
 
-    console.log('[CLOSE] Marked as', closingSide)
+    if (updateError) {
+      console.error('[CLOSE] UPDATE FAILED:', updateError.message, updateError.details, updateError.code)
+      // Constraint likely rejects closing_long/closing_short
+      // Return error so user knows
+      return NextResponse.json({ error: `DB update failed: ${updateError.message}. Run SQL: ALTER TABLE positions DROP CONSTRAINT IF EXISTS positions_side_check; ALTER TABLE positions ADD CONSTRAINT positions_side_check CHECK (side IN ('long', 'short', 'closing_long', 'closing_short'));` }, { status: 500 })
+    }
+
+    console.log('[CLOSE] Marked as', closingSide, '- SUCCESS')
 
     return NextResponse.json({
       message: `Closing ${position.symbol} — sending to MT4`,
