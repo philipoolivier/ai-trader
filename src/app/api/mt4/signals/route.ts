@@ -27,7 +27,9 @@ export async function GET(request: Request) {
       .is('mt4_ticket', null)
       .order('created_at', { ascending: true })
 
-    console.log('Signals: returning', pending?.length || 0, 'pending orders')
+    if (pending && pending.length > 0) {
+      console.log('[SIGNALS] Returning', pending.length, 'orders:', pending.map(o => `${o.order_type} ${o.symbol} id=${o.id}`).join(', '))
+    }
 
     const signals = (pending || []).map(order => ({
       id: order.id,
