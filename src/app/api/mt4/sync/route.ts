@@ -1,38 +1,12 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { getLotUnit } from '@/lib/trading-config'
 
 const DEFAULT_USER_ID = 'default-user'
-const DEFAULT_LEVERAGE = 1000
 
-interface MT4Position {
-  ticket: number
-  symbol: string
-  side: 'buy' | 'sell'
-  lots: number
-  openPrice: number
-  sl: number
-  tp: number
-  profit: number
-}
-
-interface MT4ClosedTrade {
-  ticket: number
-  symbol: string
-  side: 'buy' | 'sell'
-  lots: number
-  openPrice: number
-  closePrice: number
-  profit: number
-  sl: number
-  tp: number
-}
-
-// POST: EA sends its current state for sync
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { key, positions, closedTrades, cancelledOrders } = body
+    const { key, balance, equity, freeMargin, margin, positions, closedTrades, cancelledOrders } = body
 
     if (key !== process.env.AUTH_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -50,115 +24,121 @@ export async function POST(request: Request) {
 
     const synced: string[] = []
 
-    // Process closed trades from MT4
-    if (closedTrades && Array.isArray(closedTrades)) {
-      for (const trade of closedTrades as MT4ClosedTrade[]) {
-        const symbol = trade.symbol.toUpperCase()
-        const lotUnit = getLotUnit(symbol)
-        const units = trade.lots * lotUnit
-        const positionSide = trade.side === 'buy' ? 'long' : 'short'
+    // ── 1. Sync account balance from MT4 ──
+    if (balance !== undefined) {
+      await supabase
+        .from('portfolios')
+        .update({
+          cash_balance: balance,
+        })
+        .eq('id', portfolio.id)
+      synced.push(`Balance: $${balance}`)
+    }
 
-        // Calculate P&L
-        let pnl: number
-        if (positionSide === 'long') {
-          pnl = (trade.closePrice - trade.openPrice) * units
-        } else {
-          pnl = (trade.openPrice - trade.closePrice) * units
-        }
+    // ── 2. Sync open positions from MT4 ──
+    // MT4 positions are the source of truth
+    if (positions && Array.isArray(positions)) {
+      const mt4Positions = positions as {
+        ticket: number; symbol: string; side: string; orderType: string;
+        lots: number; openPrice: number; sl: number; tp: number; profit: number; type: number;
+      }[]
 
-        // Find matching position in our DB (try both XAUUSD and XAU/USD formats)
-        const symbolClean = symbol.replace('/', '')
-        let symbolWithSlash = symbol
-        // Try to add slash for 6-char symbols
-        if (!symbol.includes('/') && symbol.length === 6) {
-          symbolWithSlash = symbol.slice(0, 3) + '/' + symbol.slice(3)
-        }
+      // Get only market orders (type 0=buy, 1=sell), not pending (2-5)
+      const openPositions = mt4Positions.filter(p => p.type <= 1)
 
-        let { data: existingPos } = await supabase
-          .from('positions')
-          .select('*')
-          .eq('portfolio_id', portfolio.id)
-          .eq('symbol', symbolClean)
-          .single()
+      // Get current DB positions
+      const { data: dbPositions } = await supabase
+        .from('positions')
+        .select('*')
+        .eq('portfolio_id', portfolio.id)
 
-        if (!existingPos) {
-          const { data: pos2 } = await supabase
-            .from('positions')
-            .select('*')
-            .eq('portfolio_id', portfolio.id)
-            .eq('symbol', symbolWithSlash)
-            .single()
-          existingPos = pos2
-        }
-        if (!existingPos) {
-          const { data: pos3 } = await supabase
-            .from('positions')
-            .select('*')
-            .eq('portfolio_id', portfolio.id)
-            .eq('symbol', symbol)
-            .single()
-          existingPos = pos3
-        }
+      // Build map of MT4 positions by symbol+side
+      const mt4Map = new Map<string, typeof openPositions[0]>()
+      for (const pos of openPositions) {
+        const key = `${pos.symbol}_${pos.side}`
+        mt4Map.set(key, pos)
+      }
 
-        if (existingPos && parseFloat(existingPos.quantity) > 0) {
-          const posQty = parseFloat(existingPos.quantity)
-          const closeUnits = Math.min(units, posQty)
-          const remaining = posQty - closeUnits
+      // Close DB positions that no longer exist on MT4
+      if (dbPositions) {
+        for (const dbPos of dbPositions) {
+          const qty = parseFloat(dbPos.quantity) || 0
+          if (qty <= 0) continue
 
-          // Return margin + P&L
-          const marginReturned = (closeUnits * parseFloat(existingPos.avg_price)) / DEFAULT_LEVERAGE
-          await supabase
-            .from('portfolios')
-            .update({ cash_balance: parseFloat(portfolio.cash_balance) + marginReturned + pnl })
-            .eq('id', portfolio.id)
+          const sym = dbPos.symbol.replace('/', '').toUpperCase()
+          const side = dbPos.side === 'long' ? 'buy' : 'sell'
+          const key = `${sym}_${side}`
 
-          // Update position
-          await supabase
-            .from('positions')
-            .update({ quantity: remaining, updated_at: new Date().toISOString() })
-            .eq('id', existingPos.id)
-
-          // Record trade
-          await supabase.from('trades').insert({
-            portfolio_id: portfolio.id,
-            symbol,
-            side: trade.side === 'buy' ? 'sell' : 'buy', // Closing side is opposite
-            quantity: closeUnits,
-            price: trade.closePrice,
-            total: trade.closePrice * closeUnits,
-            pnl,
-            stop_loss: trade.sl || null,
-            take_profit: trade.tp || null,
-            notes: `MT4 closed: ticket #${trade.ticket} P&L: $${pnl.toFixed(2)}`,
-            status: 'filled',
-          })
-
-          synced.push(`Closed ${symbol} MT4#${trade.ticket} P&L: $${pnl.toFixed(2)}`)
+          if (!mt4Map.has(key)) {
+            // Position exists in DB but not on MT4 — close it
+            await supabase
+              .from('positions')
+              .update({ quantity: 0, updated_at: new Date().toISOString() })
+              .eq('id', dbPos.id)
+            synced.push(`Closed position: ${dbPos.symbol} (not on MT4)`)
+          }
         }
       }
     }
 
-    // Process cancelled pending orders from MT4
+    // ── 3. Process closed trades ──
+    if (closedTrades && Array.isArray(closedTrades)) {
+      for (const trade of closedTrades as {
+        ticket: number; symbol: string; side: string;
+        lots: number; openPrice: number; closePrice: number;
+        profit: number; sl: number; tp: number;
+      }[]) {
+        // Check if we already recorded this ticket
+        const { data: existing } = await supabase
+          .from('trades')
+          .select('id')
+          .like('notes', `%#${trade.ticket}%`)
+          .limit(1)
+
+        if (existing && existing.length > 0) continue // Already synced
+
+        // Record closing trade
+        const closeSide = trade.side === 'buy' ? 'sell' : 'buy'
+        await supabase.from('trades').insert({
+          portfolio_id: portfolio.id,
+          symbol: trade.symbol,
+          side: closeSide,
+          quantity: trade.lots,
+          price: trade.closePrice,
+          total: trade.closePrice * trade.lots,
+          pnl: trade.profit,
+          stop_loss: trade.sl || null,
+          take_profit: trade.tp || null,
+          notes: `MT4 closed #${trade.ticket} P&L: $${trade.profit}`,
+          status: 'filled',
+        })
+
+        synced.push(`Closed trade: ${trade.symbol} #${trade.ticket} P&L: $${trade.profit}`)
+      }
+    }
+
+    // ── 4. Process cancelled pending orders ──
     if (cancelledOrders && Array.isArray(cancelledOrders)) {
-      for (const cancelled of cancelledOrders as { ticket: number; symbol: string; side: string; entry: number }[]) {
-        const cancelSymbol = cancelled.symbol.toUpperCase()
-        // Find matching pending order by symbol, side, and entry price
-        const { data: matchingOrders } = await supabase
+      for (const cancelled of cancelledOrders as {
+        ticket: number; symbol: string; side: string; entry: number;
+      }[]) {
+        const sym = cancelled.symbol.toUpperCase()
+        // Find matching pending order by symbol and approximate entry price
+        const { data: matching } = await supabase
           .from('pending_orders')
           .select('*')
           .eq('status', 'pending')
-          .or(`symbol.eq.${cancelSymbol},symbol.eq.${cancelSymbol.slice(0, 3)}/${cancelSymbol.slice(3)}`)
 
-        if (matchingOrders) {
-          for (const order of matchingOrders) {
+        if (matching) {
+          for (const order of matching) {
+            const orderSym = order.symbol.replace('/', '').toUpperCase()
             const orderEntry = parseFloat(order.entry_price)
-            // Match by entry price (within small tolerance)
-            if (Math.abs(orderEntry - cancelled.entry) < 0.01) {
+            if (orderSym === sym && Math.abs(orderEntry - cancelled.entry) < 1) {
               await supabase
                 .from('pending_orders')
                 .update({ status: 'cancelled', updated_at: new Date().toISOString() })
                 .eq('id', order.id)
-              synced.push(`Cancelled pending ${cancelSymbol} @ ${cancelled.entry} (MT4 #${cancelled.ticket})`)
+              synced.push(`Cancelled: ${sym} @ ${cancelled.entry}`)
               break
             }
           }
@@ -166,10 +146,14 @@ export async function POST(request: Request) {
       }
     }
 
+    // ── 5. Check if portfolio has pending orders that MT4 doesn't ──
+    // (user cancelled on web app → need to delete on MT4 next poll)
+    // This is handled by the EA checking which signals it already placed
+
     return NextResponse.json({
       success: true,
       synced,
-      message: `Synced ${synced.length} trades`,
+      mt4: { balance, equity, freeMargin, margin },
     })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Sync failed'
