@@ -83,63 +83,76 @@ export async function POST(request: Request) {
         }
       }
 
-      // ── Sync pending orders from MT4 ──
-      // Get all pending orders in DB
+      // ── Sync pending orders from MT4 using ticket as unique key ──
+      const mt4Tickets = new Set<number>()
+      for (const p of pendingPositions) {
+        mt4Tickets.add(p.ticket)
+      }
+
+      // Get ALL pending orders from DB (any status)
       const { data: dbPending } = await supabase
         .from('pending_orders')
         .select('*')
-        .in('status', ['pending', 'triggered'])
+        .eq('status', 'pending')
 
-      // Build set of MT4 pending order keys (symbol+entry)
-      const mt4PendingKeys = new Set<string>()
-      for (const p of pendingPositions) {
-        mt4PendingKeys.add(`${p.symbol}_${p.openPrice.toFixed(2)}`)
-      }
-
-      // Build set of DB pending order keys for comparison
-      const dbPendingKeys = new Set<string>()
+      // Build set of DB mt4_tickets
+      const dbTickets = new Set<string>()
       if (dbPending) {
-        for (const dbOrder of dbPending) {
-          if (dbOrder.status !== 'pending') continue
-          const sym = dbOrder.symbol.replace('/', '').toUpperCase()
-          const entry = parseFloat(dbOrder.entry_price).toFixed(2)
-          dbPendingKeys.add(`${sym}_${entry}`)
+        for (const o of dbPending) {
+          if (o.mt4_ticket) dbTickets.add(String(o.mt4_ticket))
         }
       }
 
-      // Create DB records for MT4 pending orders that don't exist in DB
+      // Create DB records for MT4 pending orders not yet in DB
       for (const p of pendingPositions) {
-        const key = `${p.symbol}_${p.openPrice.toFixed(2)}`
-        if (!dbPendingKeys.has(key)) {
-          await supabase.from('pending_orders').insert({
-            symbol: p.symbol,
-            side: p.side,
-            lot_size: p.lots,
-            entry_price: p.openPrice,
-            stop_loss: p.sl || null,
-            take_profit: p.tp || null,
-            order_type: p.orderType || (p.side === 'buy' ? 'buy_limit' : 'sell_limit'),
-            status: 'pending',
-          })
-          synced.push(`Added pending from MT4: ${p.symbol} ${p.orderType} @ ${p.openPrice}`)
-        }
-      }
-
-      // Remove DB pending orders that no longer exist on MT4
-      if (dbPending) {
-        for (const dbOrder of dbPending) {
-          if (dbOrder.status !== 'pending') continue
-          const sym = dbOrder.symbol.replace('/', '').toUpperCase()
-          const entry = parseFloat(dbOrder.entry_price).toFixed(2)
-          if (!mt4PendingKeys.has(`${sym}_${entry}`)) {
-            const age = Date.now() - new Date(dbOrder.created_at).getTime()
-            if (age > 30000) {
-              await supabase
-                .from('pending_orders')
-                .update({ status: 'triggered', updated_at: new Date().toISOString() })
-                .eq('id', dbOrder.id)
-              synced.push(`Pending ${sym} triggered/removed from MT4`)
+        if (!dbTickets.has(String(p.ticket))) {
+          // Also check if there's a matching order without a ticket (placed from web, not yet linked)
+          let linked = false
+          if (dbPending) {
+            for (const o of dbPending) {
+              if (o.mt4_ticket) continue // Already linked
+              const sym = o.symbol.replace('/', '').toUpperCase()
+              const entry = parseFloat(o.entry_price)
+              if (sym === p.symbol && Math.abs(entry - p.openPrice) < 1 && o.side === p.side) {
+                // Link this DB order to the MT4 ticket
+                await supabase
+                  .from('pending_orders')
+                  .update({ mt4_ticket: p.ticket, updated_at: new Date().toISOString() })
+                  .eq('id', o.id)
+                linked = true
+                synced.push(`Linked pending ${p.symbol} to MT4 #${p.ticket}`)
+                break
+              }
             }
+          }
+
+          if (!linked) {
+            await supabase.from('pending_orders').insert({
+              symbol: p.symbol,
+              side: p.side,
+              lot_size: p.lots,
+              entry_price: p.openPrice,
+              stop_loss: p.sl || null,
+              take_profit: p.tp || null,
+              order_type: p.orderType || (p.side === 'buy' ? 'buy_limit' : 'sell_limit'),
+              status: 'pending',
+              mt4_ticket: p.ticket,
+            })
+            synced.push(`Added pending from MT4: ${p.symbol} #${p.ticket} @ ${p.openPrice}`)
+          }
+        }
+      }
+
+      // Remove DB pending orders whose MT4 ticket no longer exists on MT4
+      if (dbPending) {
+        for (const dbOrder of dbPending) {
+          if (!dbOrder.mt4_ticket) continue // Not linked to MT4 yet
+          if (!mt4Tickets.has(dbOrder.mt4_ticket)) {
+            await supabase
+              .from('pending_orders')
+              .update({ status: 'triggered', updated_at: new Date().toISOString() })
+              .eq('id', dbOrder.id)
+            synced.push(`Pending #${dbOrder.mt4_ticket} removed (not on MT4)`)
           }
         }
       }

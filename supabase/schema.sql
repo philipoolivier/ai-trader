@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS pending_orders (
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'triggering', 'triggered', 'cancelled')),
   ai_suggestion_id UUID REFERENCES ai_suggestions(id),
   triggered_trade_id UUID REFERENCES trades(id),
+  mt4_ticket INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
