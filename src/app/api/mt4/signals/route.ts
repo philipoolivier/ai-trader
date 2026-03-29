@@ -80,29 +80,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // Close commands — positions with quantity < 0 (close requested from portfolio)
-    {
-      const { data: pf } = await supabase
-        .from('portfolios').select('id').eq('user_id', 'default-user').single()
-      if (pf) {
-        const { data: closingPositions } = await supabase
-          .from('positions')
-          .select('*')
-          .eq('portfolio_id', pf.id)
-          .lt('quantity', 0)
-
-        if (closingPositions && closingPositions.length > 0) {
-          for (const pos of closingPositions) {
-            commands.push({
-              action: 'close_position',
-              symbol: mapSymbolToMT4(pos.symbol),
-              side: pos.side === 'long' ? 'buy' : 'sell',
-              id: `close-${pos.id}-${Date.now()}`, // Unique each poll so EA never skips
-            })
-          }
-        }
-      }
-    }
+    // Close from portfolio: disabled for now, will fix properly
 
     return NextResponse.json({ signals, commands, timestamp: new Date().toISOString() })
   } catch (error: unknown) {
