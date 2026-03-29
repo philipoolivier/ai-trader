@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS positions (
   symbol TEXT NOT NULL,
   quantity DECIMAL(20, 8) NOT NULL DEFAULT 0,
   avg_price DECIMAL(15, 4) NOT NULL DEFAULT 0,
-  side TEXT NOT NULL DEFAULT 'long' CHECK (side IN ('long', 'short')),
+  side TEXT NOT NULL DEFAULT 'long' CHECK (side IN ('long', 'short', 'closing_long', 'closing_short')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(portfolio_id, symbol)

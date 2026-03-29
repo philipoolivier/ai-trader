@@ -69,27 +69,25 @@ export async function GET(request: Request) {
       }
     }
 
-    // Recently closed positions (within last 5 min)
+    // Positions marked for closing (side = 'closing_long' or 'closing_short')
     const { data: portfolio } = await supabase
       .from('portfolios').select('id').eq('user_id', 'default-user').single()
 
     if (portfolio) {
-      const { data: closedPositions } = await supabase
+      const { data: closingPositions } = await supabase
         .from('positions')
         .select('*')
         .eq('portfolio_id', portfolio.id)
-        .lte('quantity', 0)
-        .gt('updated_at', new Date(Date.now() - 300000).toISOString())
+        .in('side', ['closing_long', 'closing_short'])
 
-      console.log('Close commands: found', closedPositions?.length || 0, 'closed positions')
-
-      if (closedPositions) {
-        for (const pos of closedPositions) {
-          console.log('Close command:', pos.symbol, pos.side, 'qty:', pos.quantity, 'updated:', pos.updated_at)
+      if (closingPositions && closingPositions.length > 0) {
+        console.log('[SIGNALS] Found', closingPositions.length, 'positions to close')
+        for (const pos of closingPositions) {
+          const originalSide = pos.side === 'closing_long' ? 'buy' : 'sell'
           commands.push({
             action: 'close_position',
             symbol: mapSymbolToMT4(pos.symbol),
-            side: pos.side === 'long' ? 'buy' : 'sell',
+            side: originalSide,
             id: pos.id,
           })
         }
