@@ -69,8 +69,26 @@ export async function GET(request: Request) {
       }
     }
 
-    // Close commands come through pending_orders with entry_price = 0.00001
-    // EA detects entry < 0.001 and treats as close command
+    // Close commands from portfolio close_queue
+    const { data: pf } = await supabase
+      .from('portfolios').select('id, close_queue').eq('user_id', 'default-user').single()
+
+    if (pf?.close_queue) {
+      try {
+        const closes = JSON.parse(pf.close_queue) as { symbol: string; side: string; id: string }[]
+        for (const c of closes) {
+          commands.push({
+            action: 'close_position',
+            symbol: mapSymbolToMT4(c.symbol),
+            side: c.side,
+            id: c.id,
+          })
+        }
+        if (closes.length > 0) {
+          console.log('[SIGNALS] Close queue:', closes.length, 'positions to close')
+        }
+      } catch { /* bad JSON */ }
+    }
 
     return NextResponse.json({ signals, commands, timestamp: new Date().toISOString() })
   } catch (error: unknown) {
@@ -101,6 +119,20 @@ export async function POST(request: Request) {
         .eq('id', id)
 
       return NextResponse.json({ success: true, message: `Placed on MT4 ticket #${ticket}` })
+    }
+
+    if (action === 'closed') {
+      // EA closed a position — remove from close queue
+      const { data: pf } = await supabase
+        .from('portfolios').select('id, close_queue').eq('user_id', 'default-user').single()
+      if (pf?.close_queue) {
+        try {
+          const queue = JSON.parse(pf.close_queue) as { id: string }[]
+          const filtered = queue.filter(c => c.id !== id)
+          await supabase.from('portfolios').update({ close_queue: JSON.stringify(filtered) }).eq('id', pf.id)
+        } catch { /* ignore */ }
+      }
+      return NextResponse.json({ success: true, message: `Close confirmed` })
     }
 
     if (action === 'cancelled') {

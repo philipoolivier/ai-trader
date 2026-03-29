@@ -490,8 +490,20 @@ void ProcessCommands(string json)
       }
       else if(action == "close_position")
       {
-         Print("Command: close position ", symbol, " ", side);
-         ClosePositionOnMT4(symbol, side);
+         Print(">>> CLOSE POSITION command: ", symbol, " side=", side);
+         bool closed = ClosePositionOnMT4(symbol, side);
+         if(closed)
+         {
+            Print(">>> Position closed, confirming...");
+            // Confirm to API so it removes from queue
+            string confirmUrl = API_URL + "/api/mt4/signals";
+            string confirmBody = "{\"key\":\"" + API_KEY + "\",\"id\":\"" + cmdId + "\",\"ticket\":0,\"action\":\"closed\"}";
+            string cHeaders = "Content-Type: application/json\r\n";
+            char cPost[], cResult[];
+            string cResHeaders;
+            StringToCharArray(confirmBody, cPost, 0, StringLen(confirmBody));
+            WebRequest("POST", confirmUrl, cHeaders, 5000, cPost, cResult, cResHeaders);
+         }
          MarkProcessed(cmdId);
       }
 
@@ -551,29 +563,42 @@ void CancelPendingOnMT4(string symbol, string side, double entry)
    Print("No matching pending order found for ", symbol, " @ ", entry);
 }
 
-void ClosePositionOnMT4(string symbol, string side)
+bool ClosePositionOnMT4(string symbol, string side)
 {
+   Print("Looking for position to close: ", symbol, " ", side, " (total orders: ", OrdersTotal(), ")");
    for(int i = OrdersTotal() - 1; i >= 0; i--)
    {
       if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) continue;
       if(OrderMagicNumber() != MagicNumber) continue;
-      if(OrderType() > OP_SELL) continue; // Only market orders
-      if(OrderSymbol() != symbol) continue;
+      if(OrderType() > OP_SELL) continue;
+
+      Print("Checking order #", OrderTicket(), " ", OrderSymbol(), " type=", OrderType());
+
+      // Match symbol (try exact and without suffix)
+      string orderSym = OrderSymbol();
+      if(orderSym != symbol && StringFind(orderSym, symbol) != 0) continue;
 
       // Match side
       if(side == "buy" && OrderType() != OP_BUY) continue;
       if(side == "sell" && OrderType() != OP_SELL) continue;
 
-      double closePrice = (OrderType() == OP_BUY) ? MarketInfo(symbol, MODE_BID) : MarketInfo(symbol, MODE_ASK);
+      double closePrice = (OrderType() == OP_BUY) ? MarketInfo(orderSym, MODE_BID) : MarketInfo(orderSym, MODE_ASK);
+      Print("Closing #", OrderTicket(), " ", orderSym, " at ", closePrice);
       bool closed = OrderClose(OrderTicket(), OrderLots(), closePrice, Slippage, clrRed);
 
       if(closed)
-         Print("Closed MT4 position #", OrderTicket(), " ", symbol, " at ", closePrice);
+      {
+         Print("CLOSED MT4 position #", OrderTicket(), " ", orderSym, " at ", closePrice);
+         return true;
+      }
       else
-         Print("Failed to close #", OrderTicket(), ": ", GetLastError());
-      return; // Close first match
+      {
+         Print("FAILED to close #", OrderTicket(), ": ", GetLastError());
+         return false;
+      }
    }
    Print("No matching position found for ", symbol, " ", side);
+   return false;
 }
 
 //+------------------------------------------------------------------+
