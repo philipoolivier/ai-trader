@@ -263,12 +263,10 @@ void ProcessOneSignal(string json)
       return;
    }
    // Skip commands that leaked into signals processing
-   // (commands have no 'type' field and may have 'action' instead)
+   // Do NOT mark as processed — ProcessCommands needs to handle these
    if(type == "" && lots <= 0)
    {
-      Print("Not a signal (no type, no lots) — skipping id=", id);
-      MarkProcessed(id);
-      return;
+      return; // Silently skip — ProcessCommands will handle it
    }
    if(lots <= 0 || lots > MaxLotSize) lots = MathMin(0.01, MaxLotSize);
 
