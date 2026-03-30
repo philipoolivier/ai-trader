@@ -257,25 +257,29 @@ You have S&D zones, VWAP, session boxes, PDH/PDL, and ATR/ADX data. Do NOT just 
 Identify fresh zones on higher timeframes (1H, 4H) that price hasn't reached yet. Create pending order scenarios for when price eventually gets there.
 
 ### Trade Scenarios
-Apply the S&D strategy above. If no clear setup exists, say **"NO TRADE — wait for price to reach a zone"** and explain what needs to happen.
+IMPORTANT: Provide a MIX of trade distances so several trigger throughout the day:
 
-For EACH scenario, include the **SETUP GRADE**:
+1. **IMMEDIATE** — at or very near current price (within 0.5x ATR). Market orders or stops/limits that trigger within minutes. Look for: micro structure on 5m, VWAP touch, session level retest, candle pattern forming NOW.
 
-**SCALP — [Description] — Grade: [A+/A/B/C]**
+2. **NEARBY** — within 1x ATR. Bread and butter scalps at the nearest fresh zones. Should trigger within the current session.
+
+3. **SESSION** — within 1.5-2x ATR. Set-and-forget for the next session. Fresh zones, PDH/PDL, session highs/lows.
+
+4. **HTF PENDING** — beyond 2x ATR. Distant HTF zones. May take a day or more.
+
+Aim for at least 2-3 IMMEDIATE/NEARBY trades and 1-2 SESSION/HTF trades.
+
+For EACH trade:
+
+**[IMMEDIATE/NEARBY/SESSION/HTF] — [Description] — Grade: [A+/A/B/C]**
 - Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
-- Entry: Exact price — explain WHY
-- Stop Loss: Exact price — explain WHY
-- Take Profit: Exact price — explain WHY
+- Entry: Exact price — WHY here
+- Stop Loss: Exact price — WHY here
+- Take Profit: Exact price — WHY here
 - R:R ratio
-- Confluence score: List each factor (+1 fresh zone, +2 multi-TF, +1 VWAP, etc.) = total
-- What you'd miss: One thing the trader might not see on their own
-
-**INTRADAY — [Description] — Grade: [A+/A/B/C]** (only if clean setup)
-- Same format with wider targets
-- Partial close + runner levels
-
-**HTF PENDING — [Description] — Grade: [A+/A/B/C]** (set-and-forget orders at distant zones)
-- Same format, mark as "pending order for when price reaches zone"
+- Confluence score: (+1 fresh, +2 multi-TF, +1 VWAP, etc.) = total
+- What you'd miss: One insight the trader wouldn't see
+- Distance: X points/pips from current price
 
 ### Overall Bias
 Your lean, what invalidates it, and what the instrument playbook says about current conditions.
@@ -466,25 +470,29 @@ You have S&D zones, VWAP, session boxes, PDH/PDL, and ATR/ADX data. Do NOT just 
 Identify fresh zones on higher timeframes (1H, 4H) that price hasn't reached yet. Create pending order scenarios for when price eventually gets there.
 
 ### Trade Scenarios
-Apply the S&D strategy above. If no clear setup exists, say **"NO TRADE — wait for price to reach a zone"** and explain what needs to happen.
+IMPORTANT: Provide a MIX of trade distances so several trigger throughout the day:
 
-For EACH scenario, include the **SETUP GRADE**:
+1. **IMMEDIATE** — at or very near current price (within 0.5x ATR). Market orders or stops/limits that trigger within minutes. Look for: micro structure on 5m, VWAP touch, session level retest, candle pattern forming NOW.
 
-**SCALP — [Description] — Grade: [A+/A/B/C]**
+2. **NEARBY** — within 1x ATR. Bread and butter scalps at the nearest fresh zones. Should trigger within the current session.
+
+3. **SESSION** — within 1.5-2x ATR. Set-and-forget for the next session. Fresh zones, PDH/PDL, session highs/lows.
+
+4. **HTF PENDING** — beyond 2x ATR. Distant HTF zones. May take a day or more.
+
+Aim for at least 2-3 IMMEDIATE/NEARBY trades and 1-2 SESSION/HTF trades.
+
+For EACH trade:
+
+**[IMMEDIATE/NEARBY/SESSION/HTF] — [Description] — Grade: [A+/A/B/C]**
 - Order type: MARKET / BUY STOP / SELL STOP / BUY LIMIT / SELL LIMIT
-- Entry: Exact price — explain WHY
-- Stop Loss: Exact price — explain WHY
-- Take Profit: Exact price — explain WHY
+- Entry: Exact price — WHY here
+- Stop Loss: Exact price — WHY here
+- Take Profit: Exact price — WHY here
 - R:R ratio
-- Confluence score: List each factor (+1 fresh zone, +2 multi-TF, +1 VWAP, etc.) = total
-- What you'd miss: One thing the trader might not see on their own
-
-**INTRADAY — [Description] — Grade: [A+/A/B/C]** (only if clean setup)
-- Same format with wider targets
-- Partial close + runner levels
-
-**HTF PENDING — [Description] — Grade: [A+/A/B/C]** (set-and-forget orders at distant zones)
-- Same format, mark as "pending order for when price reaches zone"
+- Confluence score: (+1 fresh, +2 multi-TF, +1 VWAP, etc.) = total
+- What you'd miss: One insight the trader wouldn't see
+- Distance: X points/pips from current price
 
 ### Overall Bias
 Your lean, what invalidates it, and what the instrument playbook says about current conditions.
